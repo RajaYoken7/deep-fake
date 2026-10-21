@@ -1,9 +1,17 @@
 node_modules/
-/dist/
+dist/
+coverage/
+
+# Keep local credentials and configuration out of Git.
 .env
-.env.local
+.env.*
+!.env.example
+
+# Runtime uploads and temporary files.
+backend/uploads/**
+
 .DS_Store
-npm-debug.log
+npm-debug.log*
 .vscode/
 .idea/
 *.log
