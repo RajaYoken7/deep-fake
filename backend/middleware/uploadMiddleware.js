@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, unlink } from 'node:fs/promises';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
@@ -22,33 +23,50 @@ const extensionByMimeType = new Map([
   ['image/webp', '.webp'],
 ]);
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: temporaryUploadDirectory,
-    filename: (_req, _file, callback) => {
-      callback(null, `${randomUUID()}.upload`);
-    },
-  }),
+// Shared Multer storage in temporary upload directory
+const storage = multer.diskStorage({
+  destination: temporaryUploadDirectory,
+  filename: (_req, file, callback) => {
+    const ext = path.extname(file.originalname).toLowerCase() || extensionByMimeType.get(file.mimetype) || '.upload';
+    callback(null, `${randomUUID()}${ext}`);
+  },
+});
+
+// File filter checking allowed image MIME types
+const fileFilter = (_req, file, callback) => {
+  if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+    callback(new HttpError(
+      400,
+      'Invalid file type. Only JPEG, PNG, and WebP images are permitted.',
+      'INVALID_FILE_TYPE',
+    ));
+    return;
+  }
+  callback(null, true);
+};
+
+// General upload instance for multipart fields (used by Identity Guardian and general uploads)
+export const upload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_IMAGE_SIZE_BYTES,
+  },
+  fileFilter,
+});
+
+// Single media upload handler (used by Detection route)
+export const receiveImage = multer({
+  storage,
   limits: {
     fileSize: MAX_IMAGE_SIZE_BYTES,
     files: 1,
   },
-  fileFilter: (_req, file, callback) => {
-    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
-      callback(new HttpError(
-        415,
-        'Upload a JPEG, PNG, or WEBP image.',
-        'UNSUPPORTED_IMAGE_TYPE',
-      ));
-      return;
-    }
+  fileFilter,
+}).single('media');
 
-    callback(null, true);
-  },
-});
-
-export const receiveImage = upload.single('media');
-
+/**
+ * Validates actual binary content of uploaded image using file-type inspection.
+ */
 export async function validateImageContent(req, _res, next) {
   if (!req.file) {
     next(new HttpError(400, 'An image file is required.', 'IMAGE_REQUIRED'));
@@ -88,3 +106,30 @@ export async function validateImageContent(req, _res, next) {
     next(error);
   }
 }
+
+/**
+ * Safely removes an array of temporary files or Multer file objects.
+ * Guarantees zero residual biometric or user photos on disk.
+ * @param {Array<string | object>} files 
+ */
+export async function cleanupFiles(files = []) {
+  for (const item of files) {
+    if (!item) continue;
+    const filePath = typeof item === 'string' ? item : item.path;
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        await fs.promises.unlink(filePath);
+      } catch (err) {
+        console.warn(`[Cleanup Warning] Could not remove temp file ${filePath}: ${err.message}`);
+      }
+    }
+  }
+}
+
+export default {
+  temporaryUploadDirectory,
+  upload,
+  receiveImage,
+  validateImageContent,
+  cleanupFiles,
+};

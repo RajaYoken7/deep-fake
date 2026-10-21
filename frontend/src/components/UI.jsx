@@ -35,7 +35,7 @@ export function UploadBox({ label = 'Upload Image', file, onFile, onInvalid, hel
       return
     }
     if (file?.url) URL.revokeObjectURL(file.url)
-    onFile({ name: item.name, url: URL.createObjectURL(item), file: item })
+    onFile({ name: item.name, url: URL.createObjectURL(item), file: item, rawFile: item })
   }
   return <div className={`upload-box ${compact ? 'compact' : ''}`} onClick={() => { if (!disabled) input.current?.click() }}>
     <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={pick} disabled={disabled} />
