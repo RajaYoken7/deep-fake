@@ -4,10 +4,10 @@
  * handles token expiration, queues requests during refresh, and retries seamlessly.
  */
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL !== undefined
-    ? import.meta.env.VITE_API_URL
-    : '';
+// Normalize base URL: strip trailing slash to prevent duplicate slashes
+const rawBaseUrl = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+
 
 // In-memory token storage getter/setter callbacks
 let getAccessTokenFn = () => null;

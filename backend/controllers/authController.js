@@ -123,7 +123,10 @@ export async function getCurrentUser(req, res) {
  */
 export async function refresh(req, res, next) {
   try {
-    const rawRefreshToken = req.cookies?.refreshToken;
+    const rawRefreshToken =
+      req.cookies?.refreshToken ||
+      req.headers['x-refresh-token'] ||
+      req.body?.refreshToken;
     const { userAgent, ipAddress } = getClientMeta(req);
 
     if (!rawRefreshToken) {
@@ -171,7 +174,10 @@ export async function refresh(req, res, next) {
  */
 export async function logout(req, res, next) {
   try {
-    const rawRefreshToken = req.cookies?.refreshToken;
+    const rawRefreshToken =
+      req.cookies?.refreshToken ||
+      req.headers['x-refresh-token'] ||
+      req.body?.refreshToken;
 
     if (rawRefreshToken) {
       await logoutUser({ rawRefreshToken });

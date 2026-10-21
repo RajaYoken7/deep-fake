@@ -29,22 +29,39 @@ export function parseDurationToMs(duration) {
 }
 
 /**
- * Get secret keys with fallback
+ * Get secret keys with production validation.
+ * Fails safely with a descriptive fatal error in production if secrets are missing or placeholders.
  */
 export function getAccessSecret() {
-  return (
-    process.env.JWT_ACCESS_SECRET ||
-    process.env.JWT_SECRET ||
-    'fallback_deeptrust_access_secret_development_only'
-  );
+  const secret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (!secret || secret.includes('replace_with')) {
+    if (isProd) {
+      throw new Error(
+        'FATAL: JWT_ACCESS_SECRET or JWT_SECRET is not configured for production in environment variables.',
+      );
+    }
+    return 'fallback_deeptrust_access_secret_development_only';
+  }
+
+  return secret;
 }
 
 export function getRefreshSecret() {
-  return (
-    process.env.JWT_REFRESH_SECRET ||
-    process.env.JWT_SECRET ||
-    'fallback_deeptrust_refresh_secret_development_only'
-  );
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (!secret || secret.includes('replace_with')) {
+    if (isProd) {
+      throw new Error(
+        'FATAL: JWT_REFRESH_SECRET or JWT_SECRET is not configured for production in environment variables.',
+      );
+    }
+    return 'fallback_deeptrust_refresh_secret_development_only';
+  }
+
+  return secret;
 }
 
 /**
@@ -88,18 +105,24 @@ export function verifyAccessToken(token) {
 }
 
 /**
- * Get cookie options for storing Refresh Token in an HTTP-only cookie
+ * Get cookie options for storing Refresh Token in an HTTP-only cookie.
+ * In production or cross-site environments (Vercel -> Render), SameSite=None requires Secure=true.
  */
 export function getRefreshTokenCookieOptions() {
   const isProd = process.env.NODE_ENV === 'production';
   const secureEnv = process.env.COOKIE_SECURE;
   const sameSiteEnv = process.env.COOKIE_SAME_SITE;
 
-  const isSecure =
-    secureEnv !== undefined ? secureEnv === 'true' : isProd;
+  // Determine SameSite setting: default to 'none' in production (cross-site), 'lax' in development
+  const sameSite = sameSiteEnv ? sameSiteEnv.toLowerCase() : isProd ? 'none' : 'lax';
 
-  const sameSite =
-    sameSiteEnv || (isProd ? 'none' : 'lax');
+  // Browsers reject cookies if sameSite=none and secure=false; force secure=true if sameSite is 'none'
+  const isSecure =
+    sameSite === 'none'
+      ? true
+      : secureEnv !== undefined
+      ? secureEnv === 'true'
+      : isProd;
 
   const refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
   const maxAge = parseDurationToMs(refreshExpiresIn);
@@ -126,5 +149,3 @@ export function getRefreshTokenExpiryDate() {
   const ms = parseDurationToMs(refreshExpiresIn);
   return new Date(Date.now() + ms);
 }
-
-

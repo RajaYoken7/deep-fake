@@ -65,7 +65,7 @@ export const receiveImage = multer({
 }).single('media');
 
 /**
- * Validates actual binary content of uploaded image using file-type inspection.
+ * Validates actual binary content of uploaded image using file-type magic byte inspection.
  */
 export async function validateImageContent(req, _res, next) {
   if (!req.file) {
@@ -108,6 +108,47 @@ export async function validateImageContent(req, _res, next) {
 }
 
 /**
+ * Validates binary content for multiple uploaded files (e.g. Identity Guardian multi-photo forms).
+ */
+export async function validateMultiImageContent(req, _res, next) {
+  if (!req.files || typeof req.files !== 'object') {
+    return next();
+  }
+
+  const allFiles = Object.values(req.files).flat().filter(Boolean);
+  if (allFiles.length < 2) {
+    // Let the controller handle missing file validation with 400
+    return next();
+  }
+
+  for (const file of allFiles) {
+    try {
+      const detectedType = await fileTypeFromFile(file.path);
+      if (
+        !detectedType ||
+        !ALLOWED_IMAGE_TYPES.has(detectedType.mime)
+      ) {
+        await cleanupFiles(allFiles);
+        return next(
+          new HttpError(
+            415,
+            `Uploaded file ${file.originalname || ''} is not a valid JPEG, PNG, or WEBP image.`,
+            'INVALID_IMAGE_CONTENT',
+          ),
+        );
+      }
+      file.mimetype = detectedType.mime;
+      file.originalname = path.basename(file.originalname);
+    } catch (error) {
+      await cleanupFiles(allFiles);
+      return next(error);
+    }
+  }
+
+  next();
+}
+
+/**
  * Safely removes an array of temporary files or Multer file objects.
  * Guarantees zero residual biometric or user photos on disk.
  * @param {Array<string | object>} files 
@@ -131,5 +172,6 @@ export default {
   upload,
   receiveImage,
   validateImageContent,
+  validateMultiImageContent,
   cleanupFiles,
 };
