@@ -6,5 +6,6 @@ import './refinements.css'
 import './rich-home.css'
 import './corrections.css'
 import './profile-page.css'
+import './theme.css'
 
 createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>)
