@@ -19,12 +19,27 @@ export function Badge({ children, type = 'cyan' }) { return <span className={`ba
 
 export function Progress({ value, color = 'cyan' }) { return <div className="progress"><i className={`progress-fill ${color}`} style={{ width: `${value}%` }} /></div> }
 
-export function UploadBox({ label = 'Upload Image', file, onFile, helper = 'PNG, JPG or WEBP up to 10MB', compact = false }) {
+export function UploadBox({ label = 'Upload Image', file, onFile, onInvalid, helper = 'PNG, JPG or WEBP up to 10MB', compact = false, disabled = false }) {
   const input = useRef()
-  const pick = (e) => { const item = e.target.files?.[0]; if (item) onFile({ name: item.name, url: URL.createObjectURL(item) }) }
-  return <div className={`upload-box ${compact ? 'compact' : ''}`} onClick={() => input.current?.click()}>
-    <input ref={input} type="file" accept="image/*" onChange={pick} />
-    {file ? <div className="preview-wrap"><img src={file.url} alt="Selected upload preview"/><span className="file-chip"><FileImage size={15}/>{file.name}</span><button onClick={(e)=>{e.stopPropagation();onFile(null)}} aria-label="Remove image"><X size={16}/></button></div> : <><div className="upload-icon"><CloudUpload size={compact ? 25 : 32}/></div><strong>{label}</strong><span>Drag & drop or <em>choose image</em></span><small>{helper}</small></>}
+  const pick = (e) => {
+    if (disabled) return
+    const item = e.target.files?.[0]
+    e.target.value = ''
+    if (!item) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(item.type)) {
+      onInvalid?.('Choose a JPEG, PNG, or WEBP image.')
+      return
+    }
+    if (item.size > 10 * 1024 * 1024) {
+      onInvalid?.('Image must be 10 MB or smaller.')
+      return
+    }
+    if (file?.url) URL.revokeObjectURL(file.url)
+    onFile({ name: item.name, url: URL.createObjectURL(item), file: item })
+  }
+  return <div className={`upload-box ${compact ? 'compact' : ''}`} onClick={() => { if (!disabled) input.current?.click() }}>
+    <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={pick} disabled={disabled} />
+    {file ? <div className="preview-wrap"><img src={file.url} alt="Selected upload preview"/><span className="file-chip"><FileImage size={15}/>{file.name}</span><button onClick={(e)=>{e.stopPropagation();if(file.url)URL.revokeObjectURL(file.url);onFile(null)}} aria-label="Remove image"><X size={16}/></button></div> : <><div className="upload-icon"><CloudUpload size={compact ? 25 : 32}/></div><strong>{label}</strong><span>Drag & drop or <em>choose image</em></span><small>{helper}</small></>}
   </div>
 }
 

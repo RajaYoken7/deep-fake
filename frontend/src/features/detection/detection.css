@@ -1,0 +1,71 @@
+.detection-error {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #ff6a9966;
+  border-radius: 9px;
+  background: #ff6a9912;
+  color: #ffb2c8;
+  line-height: 1.6;
+}
+
+.detection-result-card {
+  padding: 24px;
+}
+
+.detection-result-card h2 {
+  margin: 8px 0;
+}
+
+.detection-classification {
+  display: inline-flex;
+  margin: 14px 0;
+  padding: 8px 11px;
+  border: 1px solid #44e3e566;
+  border-radius: 8px;
+  color: #8df3ef;
+  background: #44e3e510;
+  font: 500 12px 'DM Mono', monospace;
+  letter-spacing: .4px;
+}
+
+.detection-classification.ai-generated {
+  border-color: #ff6a9966;
+  color: #ff9bb7;
+  background: #ff6a9912;
+}
+
+.detection-classification.not-ai-generated {
+  border-color: #4dde9a66;
+  color: #78efb5;
+  background: #4dde9a12;
+}
+
+.detection-result-copy,
+.detection-disclaimer,
+.detection-score-note {
+  color: #a9bad0;
+  line-height: 1.7;
+}
+
+.detection-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+  margin: 22px 0 5px;
+}
+
+.detection-score strong {
+  color: #eff6ff;
+  font-size: 26px;
+}
+
+.detection-score span {
+  color: #91a4bf;
+  font-size: 12px;
+}
+
+.detection-disclaimer {
+  margin: 12px 0 22px;
+  font-size: 12px;
+}
