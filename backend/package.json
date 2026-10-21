@@ -1,0 +1,14 @@
+{
+  "name": "deeptrust-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DeepTrust Academy Backend",
+  "scripts": {
+    "test:db": "node test-connection.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "mongoose": "^8.9.5"
+  }
+}
