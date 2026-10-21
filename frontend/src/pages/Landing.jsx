@@ -1,17 +1,396 @@
-import { ArrowRight, BrainCircuit, CheckCircle2, CircleUserRound, Fingerprint, Image, LockKeyhole, Menu, ScanLine, ShieldCheck, Sparkles, X } from 'lucide-react'
-import { Button, GlassCard } from '../components/UI'
-import { Brand } from '../components/Layout'
-import { useState } from 'react'
+import {
+  ArrowRight,
+  BrainCircuit,
+  CheckCircle2,
+  CircleUserRound,
+  Fingerprint,
+  Image,
+  LockKeyhole,
+  Menu,
+  ScanLine,
+  ShieldCheck,
+  Sparkles,
+  LogOut,
+  X,
+} from 'lucide-react';
+import { Button, GlassCard } from '../components/UI';
+import { Brand } from '../components/Layout';
+import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
-export function Landing({ go }) { const [open,setOpen]=useState(false); const navigate=(page)=>{setOpen(false);go(page)}; return <div className="landing rich-home"><div className="orb orb-one"/><div className="orb orb-two"/><header><Brand/><nav className="landing-nav" aria-label="Main navigation"><button onClick={()=>document.getElementById('about')?.scrollIntoView({behavior:'smooth'})}>About</button><button onClick={()=>document.getElementById('features')?.scrollIntoView({behavior:'smooth'})}>How it works</button><button onClick={()=>navigate('modules')}>Explore tools</button></nav><div className="nav-actions"><Button variant="ghost" onClick={()=>navigate('login')}>Login</Button><Button onClick={()=>navigate('register')}>Get started</Button><button className="profile-nav-icon" onClick={()=>navigate('profile')} aria-label="Open profile"><CircleUserRound/></button></div><button className="landing-menu" aria-label={open?'Close navigation menu':'Open navigation menu'} aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X/>:<Menu/>}</button>{open&&<nav className="landing-mobile-links" aria-label="Mobile navigation"><button onClick={()=>{setOpen(false);document.getElementById('about')?.scrollIntoView({behavior:'smooth'})}}>About</button><button onClick={()=>{setOpen(false);document.getElementById('features')?.scrollIntoView({behavior:'smooth'})}}>How it works</button><button onClick={()=>navigate('modules')}>Explore tools</button><button onClick={()=>navigate('login')}>Login</button><button onClick={()=>navigate('register')}>Create account</button></nav>}</header><main>
-  <section className="home-hero"><div className="hero-copy"><span className="eyebrow"><Sparkles size={14}/> AI · DIGITAL TRUST · IDENTITY PROTECTION</span><h1>DeepTrust Academy</h1><h2>Detect. Protect.<br/><em>Learn.</em></h2><p>An AI-based web platform designed to help users identify AI-generated images, understand deepfake risks, and protect their digital identity.</p><Button className="hero-main-button" onClick={()=>go('modules')}>Analyze an Image <ArrowRight size={17}/></Button></div><HomeVisual/></section>
-  <section id="about" className="content-section about-section"><span className="eyebrow">ABOUT THE PROJECT</span><h2>What is DeepTrust Academy?</h2><div className="section-copy"><p>DeepTrust Academy is a web-based platform focused on detecting AI-generated images and protecting digital identity. It gives users a simple way to upload an image and check whether it may have been created or changed using AI.</p><p>Along with image detection, the system provides Identity Guardian to help users compare a suspicious image with their registered face. The platform also includes educational games that will help users learn more about deepfakes and digital safety.</p></div></section>
-  <section className="content-section importance-section"><span className="eyebrow">WHY IT MATTERS</span><h2>Why Does Deepfake Detection Matter?</h2><p className="section-intro">AI tools can now create realistic images that may be difficult to identify as fake. These images can be used to spread false information or misuse someone's identity.</p><p className="section-intro">DeepTrust Academy is designed to help users become more aware of these problems and check suspicious images before trusting or sharing them.</p><div className="awareness-grid"><Info icon={Image} title="Fake Information" text="AI-generated images can be used to spread misleading content."/><Info icon={Fingerprint} title="Identity Misuse" text="Someone's face can be used in manipulated or AI-generated images without their permission." color="purple"/><Info icon={BrainCircuit} title="Digital Awareness" text="Learning how deepfakes work helps users make better decisions about online content." color="blue"/></div></section>
-  <section id="features" className="content-section how-project"><span className="eyebrow">DEEPFAKE DETECTION PROCESS</span><h2>How Does Deepfake Detection Work?</h2><div className="project-steps">{[['Upload Image','The user selects an image from their device.',Image],['CNN Analysis','The CNN analyzes the image and extracts useful visual features.',BrainCircuit],['Random Forest','The extracted features are given to the Random Forest model for classification.',ScanLine],['Detection Result','The system displays whether the image is classified as Real or AI Generated.',CheckCircle2]].map(([title,text,Icon],i)=><div className="project-step" key={title}><span>0{i+1}</span><div className="step-icon"><Icon/></div><h3>{title}</h3><p>{text}</p>{i<3&&<i className="step-line"/>}</div>)}</div></section>
-  <section className="content-section models-section"><span className="eyebrow">PLANNED MODELS</span><h2>AI Used in the Project</h2><div className="model-grid three-models"><Model title="CNN" icon={BrainCircuit} text="Used to analyze the uploaded image and extract important visual features."/><Model title="Random Forest" icon={ScanLine} text="Used to classify the extracted features and provide the final deepfake detection result." color="purple"/><Model title="FaceNet" icon={Fingerprint} text="Used only in Identity Guardian to compare a user's registered face with a suspicious uploaded image." color="blue"/></div></section>
-  <section className="identity-story"><div><span className="eyebrow">IDENTITY GUARDIAN</span><h2>Identity Guardian</h2><p>Identity Guardian is designed to help users check whether their face appears in a suspicious image. The user first registers an original face image. Later, the user can upload another image and compare it with the registered face.</p><p>FaceNet compares the facial features in both images and provides a match result. This can help the user identify a possible case of identity misuse.</p></div><div className="identity-flow">{[['Original Face',Fingerprint],['Register Identity',ShieldCheck],['Suspicious Image',Image],['FaceNet Comparison',BrainCircuit],['Identity Verification Result',CheckCircle2]].map(([text,Icon],i)=><div key={text}><span><Icon/></span><b>{text}</b>{i<4&&<i/>}</div>)}</div></section>
-  <section className="final-cta"><Sparkles/><h2>Ready to Check an Image?</h2><p>Explore DeepTrust Academy and learn how deepfake detection and identity protection work.</p><Button onClick={()=>go('modules')}>Analyze an Image <ArrowRight size={17}/></Button></section><footer><Brand compact/><span>Built for a safer digital future.</span></footer>
-</main></div> }
-function HomeVisual(){return <div className="home-visual"><div className="scan-grid"/><div className="home-visual-card"><div className="visual-top"><span><span className="live-dot"/> AI ANALYSIS</span><span>READY</span></div><div className="abstract-image"><div className="abstract-face"/><i className="scan-beam"/><div className="corner c1"/><div className="corner c2"/><div className="corner c3"/><div className="corner c4"/></div><div className="visual-ready"><span className="result-icon"><ScanLine/></span><div><small>DEEPTRUST ACADEMY</small><strong>Image checking experience</strong></div><LockKeyhole/></div></div><div className="floating-chip chip-one"><ShieldCheck/> Digital safety</div></div>}
-function Info({icon:Icon,title,text,color='cyan'}){return <GlassCard className={`info-card ${color}`}><span className="module-icon"><Icon/></span><h3>{title}</h3><p>{text}</p></GlassCard>}
-function Model({title,icon:Icon,text,color='cyan'}){return <GlassCard className={`model-card ${color}`}><span className="module-icon"><Icon/></span><div><span className="eyebrow">PLANNED MODEL</span><h3>{title}</h3><p>{text}</p></div></GlassCard>}
+export function Landing({ go }) {
+  const { user, isAuthenticated, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  const navigate = (page) => {
+    setOpen(false);
+    go(page);
+  };
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await logout();
+  };
+
+  return (
+    <div className="landing rich-home">
+      <div className="orb orb-one" />
+      <div className="orb orb-two" />
+      <header>
+        <Brand />
+        <nav className="landing-nav" aria-label="Main navigation">
+          <button
+            onClick={() =>
+              document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            About
+          </button>
+          <button
+            onClick={() =>
+              document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            How it works
+          </button>
+          <button onClick={() => navigate('modules')}>Explore tools</button>
+        </nav>
+
+        <div className="nav-actions">
+          {isAuthenticated ? (
+            <>
+              <button
+                className="profile-nav-icon"
+                onClick={() => navigate('profile')}
+                aria-label="Open profile"
+                title={user?.name || 'Profile'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  borderRadius: '9999px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                }}
+              >
+                <CircleUserRound size={20} />
+                <span
+                  style={{
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    maxWidth: '100px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user?.name?.split(' ')[0] || 'Cadet'}
+                </span>
+              </button>
+              <Button variant="ghost" onClick={handleLogout}>
+                <LogOut size={16} /> Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => navigate('login')}>
+                Login
+              </Button>
+              <Button onClick={() => navigate('register')}>Get started</Button>
+              <button
+                className="profile-nav-icon"
+                onClick={() => navigate('login')}
+                aria-label="Open login"
+              >
+                <CircleUserRound />
+              </button>
+            </>
+          )}
+        </div>
+
+        <button
+          className="landing-menu"
+          aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? <X /> : <Menu />}
+        </button>
+
+        {open && (
+          <nav className="landing-mobile-links" aria-label="Mobile navigation">
+            <button
+              onClick={() => {
+                setOpen(false);
+                document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              About
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              How it works
+            </button>
+            <button onClick={() => navigate('modules')}>Explore tools</button>
+            {isAuthenticated ? (
+              <>
+                <button onClick={() => navigate('profile')}>Profile</button>
+                <button onClick={handleLogout} style={{ color: '#fca5a5' }}>
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => navigate('login')}>Login</button>
+                <button onClick={() => navigate('register')}>Create account</button>
+              </>
+            )}
+          </nav>
+        )}
+      </header>
+
+      <main>
+        <section className="home-hero">
+          <div className="hero-copy">
+            <span className="eyebrow">
+              <Sparkles size={14} /> AI · DIGITAL TRUST · IDENTITY PROTECTION
+            </span>
+            <h1>DeepTrust Academy</h1>
+            <h2>
+              Detect. Protect.
+              <br />
+              <em>Learn.</em>
+            </h2>
+            <p>
+              An AI-based web platform designed to help users identify AI-generated images,
+              understand deepfake risks, and protect their digital identity.
+            </p>
+            <Button className="hero-main-button" onClick={() => go('modules')}>
+              Analyze an Image <ArrowRight size={17} />
+            </Button>
+          </div>
+          <HomeVisual />
+        </section>
+
+        <section id="about" className="content-section about-section">
+          <span className="eyebrow">ABOUT THE PROJECT</span>
+          <h2>What is DeepTrust Academy?</h2>
+          <div className="section-copy">
+            <p>
+              DeepTrust Academy is a web-based platform focused on detecting AI-generated
+              images and protecting digital identity. It gives users a simple way to upload an
+              image and check whether it may have been created or changed using AI.
+            </p>
+            <p>
+              Along with image detection, the system provides Identity Guardian to help users
+              compare a suspicious image with their registered face. The platform also
+              includes educational games that will help users learn more about deepfakes and
+              digital safety.
+            </p>
+          </div>
+        </section>
+
+        <section className="content-section importance-section">
+          <span className="eyebrow">WHY IT MATTERS</span>
+          <h2>Why Does Deepfake Detection Matter?</h2>
+          <p className="section-intro">
+            AI tools can now create realistic images that may be difficult to identify as
+            fake. These images can be used to spread false information or misuse someone's
+            identity.
+          </p>
+          <p className="section-intro">
+            DeepTrust Academy is designed to help users become more aware of these problems
+            and check suspicious images before trusting or sharing them.
+          </p>
+          <div className="awareness-grid">
+            <Info
+              icon={Image}
+              title="Fake Information"
+              text="AI-generated images can be used to spread misleading content."
+            />
+            <Info
+              icon={Fingerprint}
+              title="Identity Misuse"
+              text="Someone's face can be used in manipulated or AI-generated images without their permission."
+              color="purple"
+            />
+            <Info
+              icon={BrainCircuit}
+              title="Digital Awareness"
+              text="Learning how deepfakes work helps users make better decisions about online content."
+              color="blue"
+            />
+          </div>
+        </section>
+
+        <section id="features" className="content-section how-project">
+          <span className="eyebrow">DEEPFAKE DETECTION PROCESS</span>
+          <h2>How Does Deepfake Detection Work?</h2>
+          <div className="project-steps">
+            {[
+              ['Upload Image', 'The user selects an image from their device.', Image],
+              ['CNN Analysis', 'The CNN analyzes the image and extracts useful visual features.', BrainCircuit],
+              ['Random Forest', 'The extracted features are given to the Random Forest model for classification.', ScanLine],
+              ['Detection Result', 'The system displays whether the image is classified as Real or AI Generated.', CheckCircle2],
+            ].map(([title, text, Icon], i) => (
+              <div className="project-step" key={title}>
+                <span>0{i + 1}</span>
+                <div className="step-icon">
+                  <Icon />
+                </div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+                {i < 3 && <i className="step-line" />}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="content-section models-section">
+          <span className="eyebrow">PLANNED MODELS</span>
+          <h2>AI Used in the Project</h2>
+          <div className="model-grid three-models">
+            <Model
+              title="CNN"
+              icon={BrainCircuit}
+              text="Used to analyze the uploaded image and extract important visual features."
+            />
+            <Model
+              title="Random Forest"
+              icon={ScanLine}
+              text="Used to classify the extracted features and provide the final deepfake detection result."
+              color="purple"
+            />
+            <Model
+              title="FaceNet"
+              icon={Fingerprint}
+              text="Used only in Identity Guardian to compare a user's registered face with a suspicious uploaded image."
+              color="blue"
+            />
+          </div>
+        </section>
+
+        <section className="identity-story">
+          <div>
+            <span className="eyebrow">IDENTITY GUARDIAN</span>
+            <h2>Identity Guardian</h2>
+            <p>
+              Identity Guardian is designed to help users check whether their face appears in a
+              suspicious image. The user first registers an original face image. Later, the
+              user can upload another image and compare it with the registered face.
+            </p>
+            <p>
+              FaceNet compares the facial features in both images and provides a match result.
+              This can help the user identify a possible case of identity misuse.
+            </p>
+          </div>
+          <div className="identity-flow">
+            {[
+              ['Original Face', Fingerprint],
+              ['Register Identity', ShieldCheck],
+              ['Suspicious Image', Image],
+              ['FaceNet Comparison', BrainCircuit],
+              ['Identity Verification Result', CheckCircle2],
+            ].map(([text, Icon], i) => (
+              <div key={text}>
+                <span>
+                  <Icon />
+                </span>
+                <b>{text}</b>
+                {i < 4 && <i />}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="final-cta">
+          <Sparkles />
+          <h2>Ready to Check an Image?</h2>
+          <p>
+            Explore DeepTrust Academy and learn how deepfake detection and identity protection
+            work.
+          </p>
+          <Button onClick={() => go('modules')}>
+            Analyze an Image <ArrowRight size={17} />
+          </Button>
+        </section>
+
+        <footer>
+          <Brand compact />
+          <span>Built for a safer digital future.</span>
+        </footer>
+      </main>
+    </div>
+  );
+}
+
+function HomeVisual() {
+  return (
+    <div className="home-visual">
+      <div className="scan-grid" />
+      <div className="home-visual-card">
+        <div className="visual-top">
+          <span>
+            <span className="live-dot" /> AI ANALYSIS
+          </span>
+          <span>READY</span>
+        </div>
+        <div className="abstract-image">
+          <div className="abstract-face" />
+          <i className="scan-beam" />
+          <div className="corner c1" />
+          <div className="corner c2" />
+          <div className="corner c3" />
+          <div className="corner c4" />
+        </div>
+        <div className="visual-ready">
+          <span className="result-icon">
+            <ScanLine />
+          </span>
+          <div>
+            <small>DEEPTRUST ACADEMY</small>
+            <strong>Image checking experience</strong>
+          </div>
+          <LockKeyhole />
+        </div>
+      </div>
+      <div className="floating-chip chip-one">
+        <ShieldCheck /> Digital safety
+      </div>
+    </div>
+  );
+}
+
+function Info({ icon: Icon, title, text, color = 'cyan' }) {
+  return (
+    <GlassCard className={`info-card ${color}`}>
+      <span className="module-icon">
+        <Icon />
+      </span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </GlassCard>
+  );
+}
+
+function Model({ title, icon: Icon, text, color = 'cyan' }) {
+  return (
+    <GlassCard className={`model-card ${color}`}>
+      <span className="module-icon">
+        <Icon />
+      </span>
+      <div>
+        <span className="eyebrow">PLANNED MODEL</span>
+        <h3>{title}</h3>
+        <p>{text}</p>
+      </div>
+    </GlassCard>
+  );
+}
+
+export default Landing;

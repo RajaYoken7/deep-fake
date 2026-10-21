@@ -10,6 +10,12 @@ import mongoose from 'mongoose';
  * or raw biometric embeddings saved in the database.
  */
 const identityReportSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
+  },
   reportId: {
     type: String,
     required: true,

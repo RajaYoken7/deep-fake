@@ -76,6 +76,7 @@ export async function verifyIdPhoto(req, res) {
     try {
       if (mongoose.connection.readyState === 1) {
         await IdentityReport.create({
+          userId: req.user?._id || null,
           reportId,
           verificationType: 'id_photo_verification',
           status,
@@ -155,6 +156,7 @@ export async function verifyAiPhoto(req, res) {
     try {
       if (mongoose.connection.readyState === 1) {
         await IdentityReport.create({
+          userId: req.user?._id || null,
           reportId,
           verificationType: 'ai_photo_verification',
           status,
@@ -196,8 +198,31 @@ export async function verifyAiPhoto(req, res) {
   }
 }
 
+/**
+ * GET /api/identity-guardian/history
+ * Returns the authenticated user's own identity verification reports
+ */
+export async function getIdentityHistory(req, res, next) {
+  try {
+    const history = await IdentityReport.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        reports: history,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export default {
   getHealth,
   verifyIdPhoto,
-  verifyAiPhoto
+  verifyAiPhoto,
+  getIdentityHistory,
 };

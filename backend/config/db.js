@@ -23,10 +23,10 @@ export function sanitizeLog(message) {
  * Target database: deeptrust_academy
  */
 export async function connectDB() {
-  const uri = process.env.MONGO_URI || process.env.MONGO_URL;
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.MONGO_URL;
 
   if (!uri) {
-    const errorMsg = 'MONGO_URI is not defined. Please set MONGO_URI in backend/.env';
+    const errorMsg = 'MONGODB_URI or MONGO_URI is not defined. Please set MONGODB_URI in backend/.env';
     console.error(`[MongoDB Error] ${errorMsg}`);
     throw new Error(errorMsg);
   }

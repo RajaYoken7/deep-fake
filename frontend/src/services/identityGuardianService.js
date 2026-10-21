@@ -2,6 +2,8 @@
  * Identity Guardian API Client Service
  */
 
+import { apiRequest } from './apiClient';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /**
@@ -9,16 +11,11 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
  */
 export async function getIdentityGuardianHealth() {
   try {
-    const res = await fetch(`${API_BASE}/api/identity-guardian/health`, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(5000)
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    return await apiRequest('/api/identity-guardian/health');
   } catch (err) {
     return {
       status: 'offline',
-      error: err.message
+      error: err.message,
     };
   }
 }
@@ -34,16 +31,13 @@ export async function verifyIdPhotoApi(idPhotoFile, selfieFile) {
   formData.append('id_photo', idPhotoFile);
   formData.append('selfie', selfieFile);
 
-  const res = await fetch(`${API_BASE}/api/identity-guardian/id-photo/verify`, {
+  const data = await apiRequest('/api/identity-guardian/id-photo/verify', {
     method: 'POST',
     body: formData,
-    signal: AbortSignal.timeout(45000) // 45s timeout for deep vision processing
   });
 
-  const data = await res.json();
-
-  if (!res.ok || !data.success) {
-    throw new Error(data.error || `Verification failed with HTTP ${res.status}`);
+  if (!data?.success) {
+    throw new Error(data?.error || data?.message || 'Verification failed');
   }
 
   return data;
@@ -60,16 +54,13 @@ export async function verifyAiPhotoApi(suspectedFile, referenceFile) {
   formData.append('suspected_photo', suspectedFile);
   formData.append('reference_photo', referenceFile);
 
-  const res = await fetch(`${API_BASE}/api/identity-guardian/ai-photo/verify`, {
+  const data = await apiRequest('/api/identity-guardian/ai-photo/verify', {
     method: 'POST',
     body: formData,
-    signal: AbortSignal.timeout(45000)
   });
 
-  const data = await res.json();
-
-  if (!res.ok || !data.success) {
-    throw new Error(data.error || `AI photo analysis failed with HTTP ${res.status}`);
+  if (!data?.success) {
+    throw new Error(data?.error || data?.message || 'AI photo analysis failed');
   }
 
   return data;
@@ -78,5 +69,5 @@ export async function verifyAiPhotoApi(suspectedFile, referenceFile) {
 export default {
   getIdentityGuardianHealth,
   verifyIdPhotoApi,
-  verifyAiPhotoApi
+  verifyAiPhotoApi,
 };
