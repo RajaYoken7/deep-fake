@@ -370,8 +370,8 @@ function ReportView({ report, onReset }) {
 
   // Decision class mappings
   const getFaceVerdictClass = (dec) => {
-    if (dec === 'SAME PERSON') return 'match';
-    if (dec === 'DIFFERENT PERSON') return 'diff';
+    if (dec === 'LIKELY SAME PERSON' || dec === 'SAME PERSON') return 'match';
+    if (dec === 'LIKELY DIFFERENT PERSON' || dec === 'DIFFERENT PERSON') return 'diff';
     return 'inconclusive';
   };
 
@@ -380,6 +380,31 @@ function ReportView({ report, onReset }) {
     if (dec === 'LIKELY REAL-LIKE') return 'match';
     return 'inconclusive';
   };
+
+  const getFaceStatusBadge = (count) => {
+    if (count === 1) {
+      return {
+        cls: 'status-ok',
+        icon: <CheckCircle2 size={14} />,
+        text: '1 Face Detected (Clear frontal face)',
+      };
+    }
+    if (count === 0) {
+      return {
+        cls: 'status-error',
+        icon: <XCircle size={14} />,
+        text: '0 Faces Detected (No human face found)',
+      };
+    }
+    return {
+      cls: 'status-warn',
+      icon: <AlertTriangle size={14} />,
+      text: `${count || 0} Faces Detected (Ambiguous - Single face required)`,
+    };
+  };
+
+  const faceStatus1 = getFaceStatusBadge(report.imageQuality?.image1?.facesDetected ?? 1);
+  const faceStatus2 = getFaceStatusBadge(report.imageQuality?.image2?.facesDetected ?? 1);
 
   return (
     <div className="guardian-report-card">
@@ -391,7 +416,7 @@ function ReportView({ report, onReset }) {
             <span>{isSectionB ? 'AI Photo & Identity Analysis' : 'ID Photo Verification'}</span>
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#f8fafc' }}>
+            <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--text)' }}>
               Verification Report: {report.reportId}
             </h2>
             <div className="report-meta-text">
@@ -410,27 +435,35 @@ function ReportView({ report, onReset }) {
         </div>
       </div>
 
-      {/* Input Previews */}
+      {/* Input Previews with Face Detection Status */}
       <div className="report-images-row">
         <div className="report-image-box">
           <img src={report.inputPreviews?.image1?.url} alt="Image 1" />
-          <span>{report.inputPreviews?.image1?.label}</span>
+          <span className="image-label">{report.inputPreviews?.image1?.label}</span>
+          <div className={`face-status-badge ${faceStatus1.cls}`}>
+            {faceStatus1.icon}
+            <span>{faceStatus1.text}</span>
+          </div>
         </div>
         <div className="report-image-box">
           <img src={report.inputPreviews?.image2?.url} alt="Image 2" />
-          <span>{report.inputPreviews?.image2?.label}</span>
+          <span className="image-label">{report.inputPreviews?.image2?.label}</span>
+          <div className={`face-status-badge ${faceStatus2.cls}`}>
+            {faceStatus2.icon}
+            <span>{faceStatus2.text}</span>
+          </div>
         </div>
       </div>
 
       {/* SECTION 1: Face Comparison Verdict */}
       <div className={`verdict-banner ${getFaceVerdictClass(faceDec)}`}>
         <div>
-          <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>
+          <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700 }}>
             Facial Identity Decision
           </span>
           <div className="verdict-badge">
-            {faceDec === 'SAME PERSON' && <CheckCircle2 size={26} />}
-            {faceDec === 'DIFFERENT PERSON' && <XCircle size={26} />}
+            {(faceDec === 'LIKELY SAME PERSON' || faceDec === 'SAME PERSON') && <CheckCircle2 size={26} />}
+            {(faceDec === 'LIKELY DIFFERENT PERSON' || faceDec === 'DIFFERENT PERSON') && <XCircle size={26} />}
             {faceDec === 'INCONCLUSIVE' && <HelpCircle size={26} />}
             <span>{faceDec}</span>
           </div>
@@ -439,16 +472,28 @@ function ReportView({ report, onReset }) {
           </p>
         </div>
 
-        {report.faceComparison?.similarityScore !== null && (
+        {report.faceComparison?.similarityScore !== null && report.faceComparison?.similarityScore !== undefined ? (
           <div className="verdict-score-display">
-            <span style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase' }}>
-              Similarity Score
+            <span style={{ fontSize: '0.8rem', color: 'var(--muted)', textTransform: 'uppercase' }}>
+              Biometric Similarity
             </span>
             <span className="score-num">
-              {report.faceComparison?.similarityScore}%
+              {report.faceComparison.similarityScore}%
             </span>
             <span className="threshold-label">
-              Verification Threshold: {report.faceComparison?.threshold}%
+              Calibrated Positive Threshold: {report.faceComparison?.threshold}%
+            </span>
+          </div>
+        ) : (
+          <div className="verdict-score-display">
+            <span style={{ fontSize: '0.8rem', color: 'var(--muted)', textTransform: 'uppercase' }}>
+              Biometric Similarity
+            </span>
+            <span className="score-num" style={{ fontSize: '1.3rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+              Not Available
+            </span>
+            <span className="threshold-label" style={{ maxWidth: '200px' }}>
+              Comparison skipped due to inconclusive face detection
             </span>
           </div>
         )}
@@ -493,6 +538,15 @@ function ReportView({ report, onReset }) {
         </h4>
         <div className="report-details-grid">
           <div className="detail-metric-card">
+            <span className="label">Primary Image Faces</span>
+            <strong className="val">
+              {report.imageQuality?.image1?.facesDetected ?? 0} {report.imageQuality?.image1?.facesDetected === 1 ? 'Face' : 'Faces'}
+            </strong>
+            <small className="sub">
+              {report.imageQuality?.image1?.facesDetected === 1 ? 'Valid single identity' : 'Unsuitable for verification'}
+            </small>
+          </div>
+          <div className="detail-metric-card">
             <span className="label">Primary Image Sharpness</span>
             <strong className="val">{report.imageQuality?.image1?.sharpnessRating || 'Evaluated'}</strong>
             <small className="sub">Variance: {report.imageQuality?.image1?.sharpnessScore ?? 'N/A'}</small>
@@ -501,6 +555,15 @@ function ReportView({ report, onReset }) {
             <span className="label">Primary Image Exposure</span>
             <strong className="val">{report.imageQuality?.image1?.exposure || 'Normal'}</strong>
             <small className="sub">Luminance: {report.imageQuality?.image1?.brightnessScore ?? 'N/A'}</small>
+          </div>
+          <div className="detail-metric-card">
+            <span className="label">Secondary Image Faces</span>
+            <strong className="val">
+              {report.imageQuality?.image2?.facesDetected ?? 0} {report.imageQuality?.image2?.facesDetected === 1 ? 'Face' : 'Faces'}
+            </strong>
+            <small className="sub">
+              {report.imageQuality?.image2?.facesDetected === 1 ? 'Valid single identity' : 'Unsuitable for verification'}
+            </small>
           </div>
           <div className="detail-metric-card">
             <span className="label">Secondary Image Sharpness</span>

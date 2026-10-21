@@ -218,10 +218,72 @@ export async function logoutAllSessions(userId) {
   );
 }
 
+/**
+ * Retrieve active non-revoked sessions for a user with safe metadata only.
+ */
+export async function getUserSessions(userId, currentRefreshToken = null) {
+  if (!userId) return [];
+
+  const currentTokenHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
+  const sessions = await RefreshToken.find({
+    userId,
+    revoked: false,
+    expiresAt: { $gt: new Date() },
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  return sessions.map((session) => ({
+    id: session._id.toString(),
+    userAgent: session.userAgent || 'Unknown Device',
+    ipAddress: session.ipAddress || 'Unknown IP',
+    createdAt: session.createdAt,
+    lastActive: session.updatedAt || session.createdAt,
+    expiresAt: session.expiresAt,
+    isCurrent: Boolean(currentTokenHash && session.tokenHash === currentTokenHash),
+  }));
+}
+
+/**
+ * Revoke an individual session by its session document ID.
+ */
+export async function revokeSessionById(userId, sessionId) {
+  if (!userId || !sessionId) return false;
+
+  const result = await RefreshToken.findOneAndUpdate(
+    { _id: sessionId, userId, revoked: false },
+    { revoked: true, revokedAt: new Date() }
+  );
+
+  return Boolean(result);
+}
+
+/**
+ * Revoke all sessions for a user EXCEPT the currently active session.
+ */
+export async function revokeOtherSessions(userId, currentRefreshToken) {
+  if (!userId || !currentRefreshToken) return 0;
+
+  const currentTokenHash = hashToken(currentRefreshToken);
+  const result = await RefreshToken.updateMany(
+    {
+      userId,
+      tokenHash: { $ne: currentTokenHash },
+      revoked: false,
+    },
+    { revoked: true, revokedAt: new Date() }
+  );
+
+  return result.modifiedCount || 0;
+}
+
 export default {
   registerUser,
   loginUser,
   refreshUserSession,
   logoutUser,
   logoutAllSessions,
+  getUserSessions,
+  revokeSessionById,
+  revokeOtherSessions,
 };

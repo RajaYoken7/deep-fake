@@ -516,6 +516,266 @@
   line-height: 1.4;
 }
 
+/* Face Status Badges */
+.face-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.face-status-badge.status-ok {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.face-status-badge.status-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.face-status-badge.status-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+/* ==========================================================================
+   LIGHT THEME OVERRIDES FOR IDENTITY GUARDIAN
+   Clean white surfaces, subtle blue gradients, navy typography, soft shadows
+   ========================================================================== */
+[data-theme="light"] .identity-tabs {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+
+[data-theme="light"] .identity-tab-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .identity-tab-btn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .identity-tab-btn.active {
+  color: #0284c7;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.15);
+}
+
+[data-theme="light"] .identity-tab-btn.active.purple-tab {
+  color: #7c3aed;
+  background: #ede9fe;
+  border: 1px solid #ddd6fe;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.15);
+}
+
+[data-theme="light"] .upload-column-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+
+[data-theme="light"] .upload-col-header h3 {
+  color: #0f172a;
+}
+
+[data-theme="light"] .upload-col-header p {
+  color: #64748b;
+}
+
+[data-theme="light"] .upload-col-icon {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+[data-theme="light"] .upload-col-icon.purple {
+  background: #ede9fe;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+[data-theme="light"] .guardian-dropzone {
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+}
+
+[data-theme="light"] .guardian-dropzone:hover {
+  background: #f0f9ff;
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .guardian-dropzone strong {
+  color: #0f172a;
+}
+
+[data-theme="light"] .guardian-dropzone span {
+  color: #64748b;
+}
+
+[data-theme="light"] .guardian-dropzone small {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .guardian-dropzone.has-preview {
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .preview-actions {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+[data-theme="light"] .action-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+[data-theme="light"] .action-btn:hover {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .privacy-notice-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
+
+[data-theme="light"] .privacy-notice-box strong {
+  color: #0f172a;
+}
+
+[data-theme="light"] .privacy-icon {
+  color: #0284c7;
+}
+
+[data-theme="light"] .guardian-report-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 35px -8px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+[data-theme="light"] .report-header {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .report-header-left h2 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .report-type-badge {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+[data-theme="light"] .report-meta-text {
+  color: #64748b;
+}
+
+[data-theme="light"] .report-image-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .report-image-box span.image-label {
+  color: #0f172a;
+}
+
+[data-theme="light"] .explanation-paragraph {
+  color: #334155;
+}
+
+[data-theme="light"] .detail-metric-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .detail-metric-card span.label {
+  color: #64748b;
+}
+
+[data-theme="light"] .detail-metric-card strong.val {
+  color: #0f172a;
+}
+
+[data-theme="light"] .detail-metric-card small.sub {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .report-disclaimers {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
+
+[data-theme="light"] .report-disclaimers h4 {
+  color: #0f172a;
+}
+
+[data-theme="light"] .face-status-badge.status-ok {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+[data-theme="light"] .face-status-badge.status-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+[data-theme="light"] .face-status-badge.status-warn {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+[data-theme="light"] .verdict-banner.match {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+[data-theme="light"] .verdict-banner.match .verdict-badge {
+  color: #15803d;
+}
+
+[data-theme="light"] .verdict-banner.diff {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+[data-theme="light"] .verdict-banner.diff .verdict-badge {
+  color: #b91c1c;
+}
+
+[data-theme="light"] .verdict-banner.inconclusive {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+[data-theme="light"] .verdict-banner.inconclusive .verdict-badge {
+  color: #b45309;
+}
+
+[data-theme="light"] .verdict-banner.ai-detected {
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+}
+[data-theme="light"] .verdict-banner.ai-detected .verdict-badge {
+  color: #7e22ce;
+}
+
 /* ==========================================================================
    PRINT MEDIA STYLES (Lightweight clean PDF export)
    ========================================================================== */

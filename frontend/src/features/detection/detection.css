@@ -1,11 +1,12 @@
 .detection-error {
   margin-top: 14px;
   padding: 12px 14px;
-  border: 1px solid #ff6a9966;
+  border: 1px solid rgba(239, 68, 68, 0.35);
   border-radius: 9px;
-  background: #ff6a9912;
-  color: #ffb2c8;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
   line-height: 1.6;
+  font-size: 13px;
 }
 
 .detection-result-card {
@@ -14,36 +15,61 @@
 
 .detection-result-card h2 {
   margin: 8px 0;
+  color: var(--text);
 }
 
 .detection-classification {
   display: inline-flex;
   margin: 14px 0;
-  padding: 8px 11px;
-  border: 1px solid #44e3e566;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  color: #8df3ef;
-  background: #44e3e510;
-  font: 500 12px 'DM Mono', monospace;
+  color: var(--cyan);
+  background: var(--surface2);
+  font: 600 12px 'DM Mono', monospace;
   letter-spacing: .4px;
 }
 
 .detection-classification.ai-generated {
-  border-color: #ff6a9966;
-  color: #ff9bb7;
-  background: #ff6a9912;
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .detection-classification.not-ai-generated {
-  border-color: #4dde9a66;
-  color: #78efb5;
-  background: #4dde9a12;
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.detection-classification.inconclusive {
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+[data-theme="light"] .detection-classification.ai-generated {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+[data-theme="light"] .detection-classification.not-ai-generated {
+  border-color: #bbf7d0;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+[data-theme="light"] .detection-classification.inconclusive {
+  border-color: #fde68a;
+  color: #b45309;
+  background: #fffbeb;
 }
 
 .detection-result-copy,
 .detection-disclaimer,
 .detection-score-note {
-  color: #a9bad0;
+  color: var(--muted);
   line-height: 1.7;
 }
 
@@ -56,12 +82,13 @@
 }
 
 .detection-score strong {
-  color: #eff6ff;
-  font-size: 26px;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 800;
 }
 
 .detection-score span {
-  color: #91a4bf;
+  color: var(--muted);
   font-size: 12px;
 }
 

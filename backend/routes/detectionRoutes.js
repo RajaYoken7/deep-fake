@@ -3,6 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 import {
   createAnalyzeImageHandler,
   getDetectionHistory,
+  deleteDetectionHistory,
 } from '../controllers/detectionController.js';
 import {
   receiveImage,
@@ -35,6 +36,7 @@ export function createDetectionRouter({ detectImage } = {}) {
   );
 
   detectionRouter.get('/history', authenticateToken, getDetectionHistory);
+  detectionRouter.delete('/history/:id', authenticateToken, deleteDetectionHistory);
 
   return detectionRouter;
 }

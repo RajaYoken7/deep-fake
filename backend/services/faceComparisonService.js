@@ -22,7 +22,7 @@ export async function compareIdAndSelfieFaces(idPhotoPath, selfiePath) {
     }
   }
 
-  // Execute local Computer Vision & Deep Learning engine
+  // Execute local Computer Vision & Deep Learning engine (YuNet + SFace)
   const cvResult = await runPythonCvEngine('id_photo_verification', idPhotoPath, selfiePath);
 
   if (!cvResult || !cvResult.success) {
@@ -39,7 +39,7 @@ export async function compareIdAndSelfieFaces(idPhotoPath, selfiePath) {
 }
 
 /**
- * Optional CompreFace integration helper
+ * Validated CompreFace integration helper
  */
 async function verifyWithCompreFace(baseUrl, apiKey, sourcePath, targetPath) {
   const fs = await import('fs');
@@ -64,22 +64,93 @@ async function verifyWithCompreFace(baseUrl, apiKey, sourcePath, targetPath) {
   if (!response.ok) return null;
   const data = await response.json();
 
-  const match = data.result?.[0];
-  const rawSimilarity = match?.similarity || 0;
+  // If no face found in source or target image by CompreFace
+  if (!data.result || data.result.length === 0) {
+    return {
+      faceComparison: {
+        decision: 'INCONCLUSIVE',
+        similarityScore: null,
+        threshold: 75.0,
+        confidence: 'Low',
+        explanation: 'CompreFace was unable to detect a distinct face in one or both uploaded images.'
+      },
+      imageQuality: {
+        image1: { facesDetected: 0, suitableForComparison: false },
+        image2: { facesDetected: 0, suitableForComparison: false }
+      },
+      modelInfo: {
+        faceComparisonEngine: 'CompreFace Verification API',
+        faceModelVersion: 'InsightFace-SubCenter-ArcFace',
+        engineType: 'Managed Face Verification Service',
+        livenessChecked: false,
+        livenessNote: 'CompreFace face comparison does not perform active 3D liveness detection.'
+      },
+      warnings: ['No detectable human face identified by the facial recognition service.'],
+      limitations: [
+        'Still-image comparison cannot verify physical presence or liveness.',
+        'Lighting and camera angles may alter face similarity measurements.'
+      ]
+    };
+  }
+
+  const match = data.result[0];
+  if (typeof match.similarity !== 'number') {
+    return {
+      faceComparison: {
+        decision: 'INCONCLUSIVE',
+        similarityScore: null,
+        threshold: 75.0,
+        confidence: 'Low',
+        explanation: 'CompreFace returned an invalid or unscoreable facial match response.'
+      },
+      imageQuality: {
+        image1: { facesDetected: 1, suitableForComparison: true },
+        image2: { facesDetected: 1, suitableForComparison: true }
+      },
+      modelInfo: {
+        faceComparisonEngine: 'CompreFace Verification API',
+        faceModelVersion: 'InsightFace-SubCenter-ArcFace',
+        engineType: 'Managed Face Verification Service',
+        livenessChecked: false
+      },
+      warnings: ['Ambiguous or unquantified facial similarity response.'],
+      limitations: []
+    };
+  }
+
+  const rawSimilarity = match.similarity;
   const score = Math.round(rawSimilarity * 1000) / 10;
-  const threshold = 80.0;
+  const threshold = 75.0;
 
   let decision = 'INCONCLUSIVE';
-  if (score >= threshold) decision = 'SAME PERSON';
-  else if (score < 60.0) decision = 'DIFFERENT PERSON';
+  let confidence = 'Moderate';
+  let explanation = '';
+
+  if (score >= threshold) {
+    decision = 'LIKELY SAME PERSON';
+    confidence = score >= 85.0 ? 'High' : 'Moderate';
+    explanation = `CompreFace verified facial similarity at ${score}% (threshold ${threshold}%). Anatomical landmarks and facial structure match.`;
+  } else if (score < 55.0) {
+    decision = 'LIKELY DIFFERENT PERSON';
+    confidence = score <= 40.0 ? 'High' : 'Moderate';
+    explanation = `CompreFace similarity score (${score}%) is significantly below the verification threshold (${threshold}%). Facial structure indicates different individuals.`;
+  } else {
+    decision = 'INCONCLUSIVE';
+    confidence = 'Low';
+    explanation = `CompreFace similarity score (${score}%) falls within the borderline ambiguous range (55.0% - ${threshold}%).`;
+  }
 
   return {
     faceComparison: {
       decision,
       similarityScore: score,
       threshold,
-      confidence: score >= 85 ? 'High' : score < 50 ? 'High' : 'Moderate',
-      explanation: `CompreFace verified facial similarity at ${score}% (threshold ${threshold}%).`
+      confidence,
+      explanation
+    },
+    imageQuality: {
+      image1: { facesDetected: 1, suitableForComparison: true },
+      image2: { facesDetected: 1, suitableForComparison: true }
     },
     modelInfo: {
       faceComparisonEngine: 'CompreFace Verification API',

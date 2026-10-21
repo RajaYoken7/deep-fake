@@ -36,7 +36,7 @@ const identityReportSchema = new mongoose.Schema({
     decision: {
       type: String,
       required: true,
-      enum: ['SAME PERSON', 'DIFFERENT PERSON', 'INCONCLUSIVE']
+      enum: ['LIKELY SAME PERSON', 'LIKELY DIFFERENT PERSON', 'SAME PERSON', 'DIFFERENT PERSON', 'INCONCLUSIVE']
     },
     similarityScore: {
       type: Number,

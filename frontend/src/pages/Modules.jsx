@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button, GlassCard, SectionHead } from '../components/UI';
+import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -104,6 +105,7 @@ export function PublicNav({ go }) {
       </nav>
 
       <div className="public-nav-actions">
+        <ThemeSwitcher />
         {isAuthenticated ? (
           <>
             <button
@@ -181,6 +183,9 @@ export function PublicNav({ go }) {
               Logout
             </button>
           )}
+          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'center' }}>
+            <ThemeSwitcher />
+          </div>
         </div>
       )}
     </header>

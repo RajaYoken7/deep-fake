@@ -281,4 +281,48 @@ test('Authentication, Session Management & RBAC Suite', async (t) => {
     });
     assert.ok([401, 403].includes(refreshRes.status));
   });
+
+  await t.test('GET /api/auth/sessions returns active sessions with current indicator', async () => {
+    // Login to get a new session
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: testEmail, password: testPassword }),
+    });
+    const loginBody = await loginRes.json();
+    const token = loginBody.data.accessToken;
+    const cookie = loginRes.headers.get('set-cookie').split(';')[0];
+
+    const sessRes = await fetch(`${baseUrl}/api/auth/sessions`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Cookie: cookie,
+      },
+    });
+    assert.equal(sessRes.status, 200);
+    const sessBody = await sessRes.json();
+    assert.ok(sessBody.data.sessions.length >= 1);
+    const current = sessBody.data.sessions.find((s) => s.isCurrent);
+    assert.ok(current, 'Current session must be flagged isCurrent: true');
+  });
+
+  await t.test('GET /api/admin/audit-logs returns audit log entries for administrators', async () => {
+    const adminUser = new User({
+      name: 'Admin Auditor',
+      email: `auditor_${testSuffix}@example.com`,
+      password: 'AdminPassword123!',
+      role: 'ADMIN',
+    });
+    await adminUser.save();
+    const adminToken = generateAccessToken(adminUser);
+
+    const res = await fetch(`${baseUrl}/api/admin/audit-logs`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(Array.isArray(body.data.logs));
+
+    await User.deleteOne({ _id: adminUser._id });
+  });
 });

@@ -7,6 +7,9 @@ import {
   refresh,
   logout,
   logoutAll,
+  getActiveSessions,
+  revokeSession,
+  logoutOtherSessions,
 } from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/authenticateToken.js';
 
@@ -15,7 +18,7 @@ const router = Router();
 // Strict rate limiter for authentication endpoints to prevent brute-force attacks
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 15, // limit each IP to 15 requests per window
+  max: 20, // limit each IP to 20 requests per window
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -31,5 +34,8 @@ router.get('/me', authenticateToken, getCurrentUser);
 router.post('/refresh', refresh);
 router.post('/logout', logout);
 router.post('/logout-all', authenticateToken, logoutAll);
+router.get('/sessions', authenticateToken, getActiveSessions);
+router.delete('/sessions/:id', authenticateToken, revokeSession);
+router.post('/logout-other-sessions', authenticateToken, logoutOtherSessions);
 
 export default router;

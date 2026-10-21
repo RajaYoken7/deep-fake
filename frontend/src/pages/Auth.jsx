@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/UI';
 import { Brand } from '../components/Layout';
+import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { useAuth } from '../contexts/AuthContext';
 
 export function AuthPage({ mode, go, back, notify }) {
@@ -79,6 +80,9 @@ export function AuthPage({ mode, go, back, notify }) {
 
   return (
     <div className="auth-page">
+      <div style={{ position: 'absolute', top: '22px', right: '24px', zIndex: 30 }}>
+        <ThemeSwitcher />
+      </div>
       <button className="back-home" onClick={back}>
         <ArrowLeft size={17} /> Back
       </button>

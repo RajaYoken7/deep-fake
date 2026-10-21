@@ -6,11 +6,14 @@ import { Modules } from './pages/Modules';
 import { Detection, Games, Identity } from './pages/UserPages';
 import { AdminArea, HistoryPage, ProfilePage } from './pages/EmptyPages';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ShieldCheck } from 'lucide-react';
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [page, setPage] = useState('landing');
+  const [page, setPage] = useState(() => {
+    return sessionStorage.getItem('deeptrust_active_page') || 'landing';
+  });
   const [history, setHistory] = useState([]);
   const [toast, setToast] = useState('');
 
@@ -22,14 +25,16 @@ function AppContent() {
   const go = (to) => {
     setHistory((items) => [...items, page]);
     setPage(to);
+    sessionStorage.setItem('deeptrust_active_page', to);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const back = () => {
     setHistory((items) => {
       const previous = items.at(-1);
-      if (previous) setPage(previous);
-      else setPage('landing');
+      const target = previous || 'landing';
+      setPage(target);
+      sessionStorage.setItem('deeptrust_active_page', target);
       return items.slice(0, -1);
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -45,7 +50,9 @@ function AppContent() {
     // Redirect unauthenticated users attempting to access protected pages
     if (!isAuthenticated && protectedPages.includes(page)) {
       notify('Please sign in to access this feature.');
-      setPage(page === 'admin-dashboard' ? 'admin-login' : 'login');
+      const target = page === 'admin-dashboard' ? 'admin-login' : 'login';
+      setPage(target);
+      sessionStorage.setItem('deeptrust_active_page', target);
       return;
     }
 
@@ -53,17 +60,21 @@ function AppContent() {
     if (isAuthenticated && adminPages.includes(page) && user?.role !== 'ADMIN') {
       notify('Access restricted to administrators.');
       setPage('modules');
+      sessionStorage.setItem('deeptrust_active_page', 'modules');
       return;
     }
 
     // Redirect authenticated users trying to access login/register
     if (isAuthenticated && ['login', 'register'].includes(page)) {
       setPage('modules');
+      sessionStorage.setItem('deeptrust_active_page', 'modules');
       return;
     }
 
     if (isAuthenticated && page === 'admin-login') {
-      setPage(user?.role === 'ADMIN' ? 'admin-dashboard' : 'modules');
+      const target = user?.role === 'ADMIN' ? 'admin-dashboard' : 'modules';
+      setPage(target);
+      sessionStorage.setItem('deeptrust_active_page', target);
     }
   }, [page, isAuthenticated, isLoading, user]);
 
@@ -75,32 +86,41 @@ function AppContent() {
           minHeight: '100vh',
           display: 'grid',
           placeItems: 'center',
-          background: '#040b17',
-          color: '#e2e8f0',
-          fontFamily: 'inherit',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
+          color: '#0f172a',
+          fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
         }}
       >
-        <div style={{ textAlign: 'center' }}>
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '2.5rem 3rem',
+            background: '#ffffff',
+            borderRadius: '24px',
+            boxShadow: '0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(226, 232, 240, 0.8)',
+          }}
+        >
           <div
             style={{
-              width: '64px',
-              height: '64px',
-              margin: '0 auto 18px',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2))',
-              border: '1px solid rgba(6, 182, 212, 0.4)',
+              width: '68px',
+              height: '68px',
+              margin: '0 auto 20px',
+              borderRadius: '20px',
+              background: 'linear-gradient(135deg, #e0f2fe 0%, #ede9fe 100%)',
+              border: '1px solid #bae6fd',
               display: 'grid',
               placeItems: 'center',
-              color: '#67e8f9',
-              boxShadow: '0 0 25px rgba(6, 182, 212, 0.3)',
+              color: '#0284c7',
+              boxShadow: '0 8px 20px rgba(2, 132, 199, 0.15)',
+              animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             }}
           >
-            <ShieldCheck size={36} />
+            <ShieldCheck size={38} />
           </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px', letterSpacing: '-0.5px' }}>
-            DeepTrust <b style={{ color: '#67e8f9' }}>Academy</b>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.5px', color: '#0f172a' }}>
+            DeepTrust <span style={{ color: '#0284c7' }}>Academy</span>
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>
+          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0, fontWeight: 500 }}>
             Verifying secure session...
           </p>
         </div>
@@ -136,8 +156,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

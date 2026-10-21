@@ -1,6 +1,7 @@
 import { User } from '../models/User.js';
 import { DetectionHistory } from '../models/DetectionHistory.js';
 import { IdentityReport } from '../models/IdentityReport.js';
+import { AuditLog } from '../models/AuditLog.js';
 
 /**
  * GET /api/admin/overview
@@ -108,6 +109,21 @@ export async function toggleUserStatus(req, res, next) {
     user.isActive = isActive;
     await user.save();
 
+    // Record audit event
+    try {
+      await AuditLog.create({
+        adminId: req.user._id,
+        action: isActive ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+        targetUserId: user._id,
+        targetUserEmail: user.email,
+        details: { previousState: !isActive, newState: isActive },
+        ipAddress: req.ip || '',
+        userAgent: req.headers['user-agent'] || '',
+      });
+    } catch (auditErr) {
+      console.warn(`[AuditLog Warning] Could not record audit log: ${auditErr.message}`);
+    }
+
     return res.status(200).json({
       success: true,
       message: `User account has been ${isActive ? 'activated' : 'deactivated'}.`,
@@ -144,6 +160,30 @@ export async function getAdminReports(req, res, next) {
       data: {
         detections,
         identityReports,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * GET /api/admin/audit-logs
+ * Returns audit trail of administrative events
+ */
+export async function getAdminAuditLogs(req, res, next) {
+  try {
+    const logs = await AuditLog.find()
+      .populate('adminId', 'name email')
+      .populate('targetUserId', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        logs,
       },
     });
   } catch (error) {

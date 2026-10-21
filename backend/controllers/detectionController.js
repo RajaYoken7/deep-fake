@@ -76,3 +76,32 @@ export async function getDetectionHistory(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * DELETE /api/detection/history/:id
+ * Allows authenticated user to delete their own detection record
+ */
+export async function deleteDetectionHistory(req, res, next) {
+  try {
+    const { id } = req.params;
+    const deleted = await DetectionHistory.findOneAndDelete({
+      _id: id,
+      userId: req.user._id,
+    });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Detection record not found or unauthorized.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Detection report deleted successfully.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+

@@ -4,6 +4,9 @@ import {
   refreshUserSession,
   logoutUser,
   logoutAllSessions,
+  getUserSessions,
+  revokeSessionById,
+  revokeOtherSessions,
   AuthError,
 } from '../services/authService.js';
 import {
@@ -203,3 +206,77 @@ export async function logoutAll(req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * GET /api/auth/sessions
+ * Returns user's active sessions with client metadata
+ */
+export async function getActiveSessions(req, res, next) {
+  try {
+    const rawRefreshToken = req.cookies?.refreshToken;
+    const sessions = await getUserSessions(req.user._id, rawRefreshToken);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        sessions,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * DELETE /api/auth/sessions/:id
+ * Revokes an individual session
+ */
+export async function revokeSession(req, res, next) {
+  try {
+    const { id } = req.params;
+    const success = await revokeSessionById(req.user._id, id);
+
+    if (!success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or already revoked.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Session successfully revoked.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * POST /api/auth/logout-other-sessions
+ * Logs out all other devices while preserving the current active session
+ */
+export async function logoutOtherSessions(req, res, next) {
+  try {
+    const rawRefreshToken = req.cookies?.refreshToken;
+    if (!rawRefreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current session refresh token not identified.',
+      });
+    }
+
+    const revokedCount = await revokeOtherSessions(req.user._id, rawRefreshToken);
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully terminated ${revokedCount} other session(s).`,
+      data: {
+        revokedCount,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+

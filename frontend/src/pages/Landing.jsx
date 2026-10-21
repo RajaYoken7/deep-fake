@@ -12,9 +12,19 @@ import {
   Sparkles,
   LogOut,
   X,
+  Server,
+  Database,
+  KeyRound,
+  Cpu,
+  AlertTriangle,
+  FileCheck,
+  Search,
+  Activity,
+  UserCheck,
 } from 'lucide-react';
 import { Button, GlassCard } from '../components/UI';
 import { Brand } from '../components/Layout';
+import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -51,12 +61,27 @@ export function Landing({ go }) {
               document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
             }
           >
-            How it works
+            What We Built
           </button>
-          <button onClick={() => navigate('modules')}>Explore tools</button>
+          <button
+            onClick={() =>
+              document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            How it Works
+          </button>
+          <button
+            onClick={() =>
+              document.getElementById('tech-stack')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            Tech Stack
+          </button>
+          <button onClick={() => navigate('modules')}>Explore Tools</button>
         </nav>
 
         <div className="nav-actions">
+          <ThemeSwitcher />
           {isAuthenticated ? (
             <>
               <button
@@ -68,18 +93,19 @@ export function Landing({ go }) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '6px 12px',
+                  padding: '6px 14px',
                   borderRadius: '9999px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: 'rgba(2, 132, 199, 0.08)',
+                  border: '1px solid rgba(2, 132, 199, 0.2)',
+                  color: '#0284c7',
                 }}
               >
-                <CircleUserRound size={20} />
+                <CircleUserRound size={18} />
                 <span
                   style={{
                     fontSize: '0.85rem',
-                    fontWeight: 500,
-                    maxWidth: '100px',
+                    fontWeight: 600,
+                    maxWidth: '120px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -95,16 +121,9 @@ export function Landing({ go }) {
           ) : (
             <>
               <Button variant="ghost" onClick={() => navigate('login')}>
-                Login
+                Sign In
               </Button>
-              <Button onClick={() => navigate('register')}>Get started</Button>
-              <button
-                className="profile-nav-icon"
-                onClick={() => navigate('login')}
-                aria-label="Open login"
-              >
-                <CircleUserRound />
-              </button>
+              <Button onClick={() => navigate('register')}>Get Started</Button>
             </>
           )}
         </div>
@@ -134,172 +153,277 @@ export function Landing({ go }) {
                 document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              How it works
+              What We Built
             </button>
-            <button onClick={() => navigate('modules')}>Explore tools</button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              How It Works
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                document.getElementById('tech-stack')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              Tech Stack
+            </button>
+            <button onClick={() => navigate('modules')}>Explore Tools</button>
             {isAuthenticated ? (
               <>
                 <button onClick={() => navigate('profile')}>Profile</button>
-                <button onClick={handleLogout} style={{ color: '#fca5a5' }}>
+                <button onClick={handleLogout} style={{ color: '#ef4444' }}>
                   Logout
                 </button>
               </>
             ) : (
               <>
                 <button onClick={() => navigate('login')}>Login</button>
-                <button onClick={() => navigate('register')}>Create account</button>
+                <button onClick={() => navigate('register')}>Create Account</button>
               </>
             )}
+            <div style={{ padding: '12px 14px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'center' }}>
+              <ThemeSwitcher />
+            </div>
           </nav>
         )}
       </header>
 
       <main>
+        {/* Hero Section */}
         <section className="home-hero">
           <div className="hero-copy">
             <span className="eyebrow">
-              <Sparkles size={14} /> AI · DIGITAL TRUST · IDENTITY PROTECTION
+              <Sparkles size={14} /> AI · DIGITAL TRUST · IDENTITY VERIFICATION
             </span>
             <h1>DeepTrust Academy</h1>
             <h2>
-              Detect. Protect.
+              Verify Authenticity.
               <br />
-              <em>Learn.</em>
+              <em>Safeguard Identity.</em>
             </h2>
             <p>
-              An AI-based web platform designed to help users identify AI-generated images,
-              understand deepfake risks, and protect their digital identity.
+              An enterprise-grade digital trust platform engineered to detect AI-generated
+              media, verify biometric identity against fraudulent impersonation, and foster digital
+              awareness through interactive forensic tools.
             </p>
-            <Button className="hero-main-button" onClick={() => go('modules')}>
-              Analyze an Image <ArrowRight size={17} />
-            </Button>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <Button className="hero-main-button" onClick={() => go('modules')}>
+                Explore Detection Tools <ArrowRight size={17} />
+              </Button>
+              <Button
+                variant="secondary"
+                className="hero-main-button"
+                onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                Learn How It Works
+              </Button>
+            </div>
           </div>
           <HomeVisual />
         </section>
 
+        {/* Section A: Project Introduction */}
         <section id="about" className="content-section about-section">
-          <span className="eyebrow">ABOUT THE PROJECT</span>
-          <h2>What is DeepTrust Academy?</h2>
+          <span className="eyebrow">PROJECT INTRODUCTION</span>
+          <h2>Authenticity in an Era of Synthetic Media</h2>
           <div className="section-copy">
             <p>
-              DeepTrust Academy is a web-based platform focused on detecting AI-generated
-              images and protecting digital identity. It gives users a simple way to upload an
-              image and check whether it may have been created or changed using AI.
+              <strong>DeepTrust Academy</strong> is an AI-powered verification platform designed
+              to empower users and organizations to critically examine digital media for signs of
+              AI generation, manipulation, and synthetic generation. By integrating specialized
+              machine learning inference services, DeepTrust provides transparent probabilistic
+              indicators rather than opaque black-box assertions.
             </p>
             <p>
-              Along with image detection, the system provides Identity Guardian to help users
-              compare a suspicious image with their registered face. The platform also
-              includes educational games that will help users learn more about deepfakes and
-              digital safety.
+              Beyond standalone deepfake image detection, the platform features{' '}
+              <strong>Identity Guardian</strong>, an identity verification system that allows
+              individuals to compare suspicious portrait media with verified reference photographs
+              under strict privacy safeguards—guaranteeing zero persistence of raw biometric
+              data or face embeddings.
             </p>
           </div>
         </section>
 
-        <section className="content-section importance-section">
-          <span className="eyebrow">WHY IT MATTERS</span>
-          <h2>Why Does Deepfake Detection Matter?</h2>
-          <p className="section-intro">
-            AI tools can now create realistic images that may be difficult to identify as
-            fake. These images can be used to spread false information or misuse someone's
-            identity.
+        {/* Section B: What We Have Built */}
+        <section id="features" className="content-section">
+          <span className="eyebrow">VERIFIED ARCHITECTURE</span>
+          <h2>What We Have Built</h2>
+          <p className="section-intro" style={{ maxWidth: '720px', margin: '0 0 28px' }}>
+            Every capability in DeepTrust Academy is backed by active, verified full-stack
+            implementations—from specialized computer vision APIs to cryptographic session handling.
           </p>
-          <p className="section-intro">
-            DeepTrust Academy is designed to help users become more aware of these problems
-            and check suspicious images before trusting or sharing them.
-          </p>
-          <div className="awareness-grid">
-            <Info
-              icon={Image}
-              title="Fake Information"
-              text="AI-generated images can be used to spread misleading content."
-            />
-            <Info
-              icon={Fingerprint}
-              title="Identity Misuse"
-              text="Someone's face can be used in manipulated or AI-generated images without their permission."
-              color="purple"
-            />
-            <Info
-              icon={BrainCircuit}
-              title="Digital Awareness"
-              text="Learning how deepfakes work helps users make better decisions about online content."
-              color="blue"
-            />
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+            <GlassCard>
+              <span className="module-icon">
+                <BrainCircuit size={22} />
+              </span>
+              <h3>Sightengine AI Image Detection</h3>
+              <p>
+                Direct integration with Sightengine's GenAI model. Analyzes pixel artifacts,
+                compression discrepancies, and generation signatures to calculate a normalized
+                AI score with explicit classification thresholds.
+              </p>
+            </GlassCard>
+
+            <GlassCard>
+              <span className="module-icon">
+                <ShieldCheck size={22} />
+              </span>
+              <h3>Identity Guardian & Facial Verification</h3>
+              <p>
+                Dual-mode facial comparison powered by CompreFace. Supports ID Card photo verification
+                against live selfies and reference portrait matching to detect identity theft without
+                storing raw biometrics.
+              </p>
+            </GlassCard>
+
+            <GlassCard>
+              <span className="module-icon">
+                <KeyRound size={22} />
+              </span>
+              <h3>Persistent 7-Day Session Security</h3>
+              <p>
+                State-of-the-art authentication lifecycle using 15-minute in-memory access tokens and
+                7-day HttpOnly refresh cookies with cryptographic rotation, reuse detection, and device
+                session management.
+              </p>
+            </GlassCard>
+
+            <GlassCard>
+              <span className="module-icon">
+                <FileCheck size={22} />
+              </span>
+              <h3>User History & Forensic Reports</h3>
+              <p>
+                Personalized user history tracking of past image analyses and identity reports.
+                Includes search, classification filters (Real, AI, Inconclusive), and report inspection modals.
+              </p>
+            </GlassCard>
+
+            <GlassCard>
+              <span className="module-icon">
+                <Activity size={22} />
+              </span>
+              <h3>Admin Governance & Audit Trails</h3>
+              <p>
+                Role-based administrative console with live aggregate metrics, user account activation
+                and suspension controls, and tamper-resistant administrative audit logging.
+              </p>
+            </GlassCard>
+
+            <GlassCard>
+              <span className="module-icon">
+                <UserCheck size={22} />
+              </span>
+              <h3>Security & Session Dashboard</h3>
+              <p>
+                User profile control center to inspect all active device sessions, IP metadata, and
+                browser footprints, with one-click revocation of individual devices or universal logout.
+              </p>
+            </GlassCard>
           </div>
         </section>
 
-        <section id="features" className="content-section how-project">
-          <span className="eyebrow">DEEPFAKE DETECTION PROCESS</span>
-          <h2>How Does Deepfake Detection Work?</h2>
-          <div className="project-steps">
+        {/* Section C: How It Works */}
+        <section id="how-it-works" className="content-section">
+          <span className="eyebrow">SYSTEM PIPELINE</span>
+          <h2>How DeepTrust Verifies Digital Media</h2>
+          <p className="section-intro" style={{ maxWidth: '720px', margin: '0 0 32px' }}>
+            A rigorous 5-step technical pipeline processes digital media from upload to transparent decision delivery.
+          </p>
+
+          <div className="project-steps" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
             {[
-              ['Upload Image', 'The user selects an image from their device.', Image],
-              ['CNN Analysis', 'The CNN analyzes the image and extracts useful visual features.', BrainCircuit],
-              ['Random Forest', 'The extracted features are given to the Random Forest model for classification.', ScanLine],
-              ['Detection Result', 'The system displays whether the image is classified as Real or AI Generated.', CheckCircle2],
-            ].map(([title, text, Icon], i) => (
+              ['01', 'File Validation', 'Client validates image MIME format (JPEG, PNG, WebP) and 10MB bounds before transmission.', Image],
+              ['02', 'Secure Dispatch', 'Express backend validates session, checks rate limits, and buffers payload securely in memory.', Server],
+              ['03', 'AI Inference', 'Sightengine inspects synthetic generator patterns; CompreFace extracts 512-d facial feature vectors.', BrainCircuit],
+              ['04', 'Threshold Scoring', 'Scores are mapped against calibrated thresholds (≥0.80 AI, ≤0.20 Natural, 0.20–0.80 Inconclusive).', ScanLine],
+              ['05', 'Audit & Reporting', 'Results logged to MongoDB; decision explanations and caveats returned to user without storing raw biometrics.', CheckCircle2],
+            ].map(([step, title, text, Icon], i) => (
               <div className="project-step" key={title}>
-                <span>0{i + 1}</span>
+                <span>{step}</span>
                 <div className="step-icon">
-                  <Icon />
+                  <Icon size={20} />
                 </div>
                 <h3>{title}</h3>
                 <p>{text}</p>
-                {i < 3 && <i className="step-line" />}
               </div>
             ))}
           </div>
         </section>
 
-        <section className="content-section models-section">
-          <span className="eyebrow">PLANNED MODELS</span>
-          <h2>AI Used in the Project</h2>
-          <div className="model-grid three-models">
-            <Model
-              title="CNN"
-              icon={BrainCircuit}
-              text="Used to analyze the uploaded image and extract important visual features."
-            />
-            <Model
-              title="Random Forest"
-              icon={ScanLine}
-              text="Used to classify the extracted features and provide the final deepfake detection result."
-              color="purple"
-            />
-            <Model
-              title="FaceNet"
-              icon={Fingerprint}
-              text="Used only in Identity Guardian to compare a user's registered face with a suspicious uploaded image."
-              color="blue"
-            />
+        {/* Section D: Actual Technology Stack */}
+        <section id="tech-stack" className="content-section">
+          <span className="eyebrow">VERIFIED TECH STACK</span>
+          <h2>Engineered with Modern Standards</h2>
+          <p className="section-intro" style={{ maxWidth: '720px', margin: '0 0 28px' }}>
+            DeepTrust Academy is built exclusively with verified, industry-standard technologies running across our codebase:
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            {[
+              { title: 'React 18 & Vite', desc: 'Fast, modern reactive frontend with instant HMR and client-side routing.', icon: Cpu },
+              { title: 'Node.js & Express.js', desc: 'RESTful API gateway with centralized error handling, CORS, and auth middleware.', icon: Server },
+              { title: 'MongoDB Atlas & Mongoose', desc: 'Cloud document persistence with TTL automatic session expiration indexes.', icon: Database },
+              { title: 'JWT & HttpOnly Cookies', desc: 'Dual-token auth lifecycle with SHA-256 refresh hashing and automatic rotation.', icon: KeyRound },
+              { title: 'Sightengine API', desc: 'High-precision GenAI detection model analyzing generative image artifacts.', icon: BrainCircuit },
+              { title: 'CompreFace Service', desc: 'Self-hosted or cloud facial recognition engine for biometric similarity matching.', icon: Fingerprint },
+            ].map((tech) => (
+              <GlassCard key={tech.title} style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: 'rgba(2, 132, 199, 0.1)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'var(--cyan)',
+                    }}
+                  >
+                    <tech.icon size={20} />
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: '15px', color: 'var(--text)' }}>{tech.title}</h4>
+                </div>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)', lineHeight: '1.6' }}>{tech.desc}</p>
+              </GlassCard>
+            ))}
           </div>
         </section>
 
+        {/* Section E: Mission & Responsible AI */}
         <section className="identity-story">
           <div>
-            <span className="eyebrow">IDENTITY GUARDIAN</span>
-            <h2>Identity Guardian</h2>
+            <span className="eyebrow">PROJECT MISSION</span>
+            <h2>Advancing Trust in Digital Media</h2>
             <p>
-              Identity Guardian is designed to help users check whether their face appears in a
-              suspicious image. The user first registers an original face image. Later, the
-              user can upload another image and compare it with the registered face.
+              As generative artificial intelligence matures, synthetic media is becoming indistinguishable
+              from optical reality. Our mission with DeepTrust Academy is twofold: provide accessible forensic
+              tools to identify AI-manipulated content, and equip people with the critical awareness needed to
+              navigate digital information safely.
             </p>
             <p>
-              FaceNet compares the facial features in both images and provides a match result.
-              This can help the user identify a possible case of identity misuse.
+              We believe in <strong>responsible AI</strong>: automated detection tools are diagnostic aids that
+              empower human judgment, not unilateral or infallible arbiters of truth.
             </p>
           </div>
           <div className="identity-flow">
             {[
-              ['Original Face', Fingerprint],
-              ['Register Identity', ShieldCheck],
-              ['Suspicious Image', Image],
-              ['FaceNet Comparison', BrainCircuit],
-              ['Identity Verification Result', CheckCircle2],
+              ['Digital Media Authenticity', Fingerprint],
+              ['Synthetic Artifact Awareness', ShieldCheck],
+              ['Biometric Identity Defense', LockKeyhole],
+              ['Responsible Forensic Judgment', BrainCircuit],
+              ['Public Digital Literacy', CheckCircle2],
             ].map(([text, Icon], i) => (
               <div key={text}>
                 <span>
-                  <Icon />
+                  <Icon size={16} />
                 </span>
                 <b>{text}</b>
                 {i < 4 && <i />}
@@ -308,12 +432,57 @@ export function Landing({ go }) {
           </div>
         </section>
 
+        {/* Section F: Limitations and Transparency */}
+        <section className="content-section" style={{ borderBottom: '1px solid var(--line)' }}>
+          <div
+            style={{
+              padding: '28px',
+              borderRadius: '18px',
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              display: 'flex',
+              gap: '20px',
+              alignItems: 'flex-start',
+            }}
+          >
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: '#fef3c7',
+                display: 'grid',
+                placeItems: 'center',
+                color: '#d97706',
+                flexShrink: 0,
+              }}
+            >
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 style={{ margin: '0 0 6px', fontSize: '16px', color: '#92400e', fontWeight: 700 }}>
+                Transparency & Detection Limitations
+              </h3>
+              <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#b45309', lineHeight: '1.7' }}>
+                AI-generated image detection models evaluate probabilistic patterns and visual artifacts. They
+                are not capable of absolute mathematical certainty. Factors such as heavy lossy compression,
+                social media re-encoding, photographic grain, artistic filters, or post-processing can lead to
+                <strong> false positives</strong> (real photos flagged as AI) or <strong>false negatives</strong>{' '}
+                (AI images escaping detection).
+              </p>
+              <p style={{ margin: 0, fontSize: '12px', color: '#92400e', fontWeight: 600 }}>
+                Always correlate automated detection scores with contextual evidence, source provenance, and human forensic review.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
         <section className="final-cta">
-          <Sparkles />
-          <h2>Ready to Check an Image?</h2>
+          <Sparkles size={28} />
+          <h2>Ready to Verify Digital Content?</h2>
           <p>
-            Explore DeepTrust Academy and learn how deepfake detection and identity protection
-            work.
+            Upload an image to evaluate AI generation signatures, or use Identity Guardian to verify portrait media.
           </p>
           <Button onClick={() => go('modules')}>
             Analyze an Image <ArrowRight size={17} />
@@ -322,7 +491,7 @@ export function Landing({ go }) {
 
         <footer>
           <Brand compact />
-          <span>Built for a safer digital future.</span>
+          <span>© DeepTrust Academy · Engineered for digital authenticity and media literacy.</span>
         </footer>
       </main>
     </div>
@@ -336,12 +505,11 @@ function HomeVisual() {
       <div className="home-visual-card">
         <div className="visual-top">
           <span>
-            <span className="live-dot" /> AI ANALYSIS
+            <span className="live-dot" /> SIGHTENGINE ACTIVE
           </span>
           <span>READY</span>
         </div>
         <div className="abstract-image">
-          <div className="abstract-face" />
           <i className="scan-beam" />
           <div className="corner c1" />
           <div className="corner c2" />
@@ -353,43 +521,19 @@ function HomeVisual() {
             <ScanLine />
           </span>
           <div>
-            <small>DEEPTRUST ACADEMY</small>
-            <strong>Image checking experience</strong>
+            <small>DEEPTRUST FORENSIC ENGINE</small>
+            <strong>Dual-Vector Media Analysis</strong>
           </div>
-          <LockKeyhole />
+          <LockKeyhole size={18} />
         </div>
       </div>
       <div className="floating-chip chip-one">
-        <ShieldCheck /> Digital safety
+        <ShieldCheck size={16} /> Zero Raw Biometrics
+      </div>
+      <div className="floating-chip chip-two">
+        <BrainCircuit size={16} /> GenAI Artifact Scan
       </div>
     </div>
-  );
-}
-
-function Info({ icon: Icon, title, text, color = 'cyan' }) {
-  return (
-    <GlassCard className={`info-card ${color}`}>
-      <span className="module-icon">
-        <Icon />
-      </span>
-      <h3>{title}</h3>
-      <p>{text}</p>
-    </GlassCard>
-  );
-}
-
-function Model({ title, icon: Icon, text, color = 'cyan' }) {
-  return (
-    <GlassCard className={`model-card ${color}`}>
-      <span className="module-icon">
-        <Icon />
-      </span>
-      <div>
-        <span className="eyebrow">PLANNED MODEL</span>
-        <h3>{title}</h3>
-        <p>{text}</p>
-      </div>
-    </GlassCard>
   );
 }
 

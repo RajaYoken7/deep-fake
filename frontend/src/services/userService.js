@@ -26,9 +26,35 @@ export async function getUserHistory() {
   return res.data || { detections: [], identityReports: [] };
 }
 
+export async function deleteDetectionRecord(id) {
+  const res = await apiRequest(`/api/detection/history/${id}`, {
+    method: 'DELETE',
+  });
+  return res;
+}
+
 export async function getUserStats() {
   const res = await apiRequest('/api/users/stats');
   return res.data || { detections: 0, identityChecks: 0, missions: 0, games: 0 };
+}
+
+export async function getUserSessions() {
+  const res = await apiRequest('/api/auth/sessions');
+  return res.data?.sessions || [];
+}
+
+export async function revokeSession(sessionId) {
+  const res = await apiRequest(`/api/auth/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+  return res;
+}
+
+export async function logoutOtherSessions() {
+  const res = await apiRequest('/api/auth/logout-other-sessions', {
+    method: 'POST',
+  });
+  return res;
 }
 
 export async function getAdminOverview() {
@@ -49,13 +75,23 @@ export async function toggleAdminUserStatus(userId, isActive) {
   return res.data?.user;
 }
 
+export async function getAdminAuditLogs() {
+  const res = await apiRequest('/api/admin/audit-logs');
+  return res.data?.logs || [];
+}
+
 export default {
   getUserProfile,
   updateUserProfile,
   changeUserPassword,
   getUserHistory,
+  deleteDetectionRecord,
   getUserStats,
+  getUserSessions,
+  revokeSession,
+  logoutOtherSessions,
   getAdminOverview,
   getAdminUsers,
   toggleAdminUserStatus,
+  getAdminAuditLogs,
 };

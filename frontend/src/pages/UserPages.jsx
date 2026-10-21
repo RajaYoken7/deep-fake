@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, Fingerprint, Gamepad2, Image, LockKeyhole, ScanSearch, ShieldCheck, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, Fingerprint, Gamepad2, Image, LockKeyhole, ScanSearch, ShieldCheck, Upload, AlertTriangle, Info } from 'lucide-react'
 import { Button, GlassCard, SectionHead, UploadBox } from '../components/UI'
 import { BackButton, PublicNav } from './Modules'
 import { analyzeImage } from '../features/detection/services/detectionApi'
@@ -50,12 +50,127 @@ export function Detection({ notify, go, back }) {
 }
 function DetectionResult({ file, result, reset }) {
   const classificationLabel = {
-    AI_GENERATED: 'AI-generated indicators detected',
-    NOT_AI_GENERATED: 'No strong AI-generation indicators detected',
-    INCONCLUSIVE: 'Inconclusive result',
-  }[result.classification]
-  const classificationClass = result.classification.toLowerCase().replaceAll('_', '-')
-  return <div className="result-layout"><GlassCard className="result-main detection-result-card"><div className="result-head"><div className="success-round"><ScanSearch/></div><div><span className="eyebrow">SIGHTENGINE GENAI RESULT</span><h2>Analysis complete</h2></div></div><span className={`detection-classification ${classificationClass}`}>{classificationLabel}</span><div className="detection-score"><strong>{result.score === null ? 'Unavailable' : result.score.toFixed(3)}</strong><span>AI-generated score (Sightengine model score)</span></div><p className="detection-score-note">Classification uses a configurable threshold of {result.threshold} and its corresponding lower bound of {(1-result.threshold).toFixed(2)}. The score is not a guaranteed probability.</p><p className="detection-disclaimer">{result.disclaimer}</p><div className="result-actions"><Button variant="secondary" onClick={reset}><ArrowLeft size={16}/> Choose another image</Button><Button onClick={reset}>Analyze Another Image <ArrowRight size={16}/></Button></div></GlassCard><GlassCard className="summary-card"><h3>Selected Image</h3><div className="summary-image">{file?.url?<img src={file.url} alt="Selected upload"/>:<Image/>}</div><div className="summary-row"><span>File name</span><b>{file?.name || 'Selected image'}</b></div><div className="summary-row"><span>Status</span><b>Analysis complete</b></div></GlassCard></div>
+    AI_GENERATED: 'AI-Generated Signatures Detected',
+    NOT_AI_GENERATED: 'No Strong AI-Generated Indicators',
+    INCONCLUSIVE: 'Inconclusive / Mixed Indicators',
+  }[result.classification] || 'Analysis Complete';
+
+  const classificationClass = result.classification.toLowerCase().replaceAll('_', '-');
+  const scorePercent = result.score !== null ? (result.score * 100).toFixed(1) : null;
+  const upperThreshold = result.threshold || 0.8;
+  const lowerThreshold = +(1 - upperThreshold).toFixed(2);
+
+  return (
+    <div className="result-layout">
+      <div style={{ display: 'grid', gap: '20px' }}>
+        <GlassCard className="result-main detection-result-card">
+          <div className="result-head" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+            <div className="success-round">
+              <ScanSearch size={24} />
+            </div>
+            <div>
+              <span className="eyebrow">SIGHTENGINE GENAI FORENSIC REPORT</span>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800 }}>Analysis Complete</h2>
+            </div>
+          </div>
+
+          <div style={{ margin: '14px 0' }}>
+            <span className={`detection-classification ${classificationClass}`} style={{ fontSize: '13px', padding: '8px 14px' }}>
+              {classificationLabel}
+            </span>
+          </div>
+
+          <div className="detection-score" style={{ margin: '20px 0 10px' }}>
+            <strong style={{ fontSize: '38px', fontWeight: 800 }}>
+              {scorePercent !== null ? `${scorePercent}%` : 'Unavailable'}
+            </strong>
+            <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
+              AI Generation Likelihood Score ({result.score !== null ? result.score.toFixed(4) : 'N/A'})
+            </span>
+          </div>
+
+          {/* Visual Threshold Scale */}
+          {result.score !== null && (
+            <div style={{ margin: '20px 0 24px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--muted)', marginBottom: '8px', fontWeight: 600 }}>
+                <span>0% (Natural / Real)</span>
+                <span>{lowerThreshold * 100}% Lower Bound</span>
+                <span>{upperThreshold * 100}% AI Threshold</span>
+                <span>100% (Synthetic)</span>
+              </div>
+              <div style={{ position: 'relative', height: '12px', borderRadius: '6px', overflow: 'hidden', background: '#e2e8f0', display: 'flex' }}>
+                <div style={{ width: `${lowerThreshold * 100}%`, background: '#86efac' }} title="Natural Baseline" />
+                <div style={{ width: `${(upperThreshold - lowerThreshold) * 100}%`, background: '#fde68a' }} title="Inconclusive Zone" />
+                <div style={{ width: `${(1 - upperThreshold) * 100}%`, background: '#fca5a5' }} title="AI Detection Zone" />
+              </div>
+              <div style={{ position: 'relative', height: '14px', marginTop: '4px' }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${Math.min(Math.max(result.score * 100, 2), 98)}%`,
+                    transform: 'translateX(-50%)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--cyan)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                  }}
+                >
+                  ▲ <span>{scorePercent}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Feature C: Explanation Breakdown */}
+          <div style={{ display: 'grid', gap: '12px', margin: '20px 0' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px 14px', background: '#f0f9ff', borderRadius: '10px', border: '1px solid #bae6fd' }}>
+              <Info size={18} color="var(--cyan)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '12px', color: '#0369a1', lineHeight: '1.6' }}>
+                <strong>Decision Methodology:</strong> Sightengine analyzes generative diffusion traces, latent artifacts, and unnatural frequency responses. Scores ≥ {upperThreshold} indicate high probability of synthetic generation; scores ≤ {lowerThreshold} reflect photographic baselines. Scores between {lowerThreshold} and {upperThreshold} indicate mixed visual features requiring human verification.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px 14px', background: '#fffbeb', borderRadius: '10px', border: '1px solid #fde68a' }}>
+              <AlertTriangle size={18} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '12px', color: '#92400e', lineHeight: '1.6' }}>
+                <strong>Important Limitations:</strong> The score represents a model indicator, not mathematical certainty. Factors such as aggressive compression (e.g. messaging apps), social media filters, extreme lighting, or manual photo retouching can introduce artifact noise.
+              </div>
+            </div>
+          </div>
+
+          <div className="result-actions" style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+            <Button variant="secondary" onClick={reset}>
+              <ArrowLeft size={16} /> Choose another image
+            </Button>
+            <Button onClick={reset}>
+              Analyze Another Image <ArrowRight size={16} />
+            </Button>
+          </div>
+        </GlassCard>
+      </div>
+
+      <GlassCard className="summary-card">
+        <h3>Selected Image</h3>
+        <div className="summary-image">
+          {file?.url ? <img src={file.url} alt="Selected upload" /> : <Image size={40} />}
+        </div>
+        <div className="summary-row">
+          <span>File name</span>
+          <b>{file?.name || 'Selected image'}</b>
+        </div>
+        <div className="summary-row">
+          <span>Analysis Provider</span>
+          <b>Sightengine GenAI</b>
+        </div>
+        <div className="summary-row">
+          <span>Status</span>
+          <b>Completed</b>
+        </div>
+      </GlassCard>
+    </div>
+  );
 }
 
 export function Identity({ notify, go, back }) {

@@ -166,4 +166,112 @@ describe('Identity Guardian Backend Test Suite', () => {
       await cleanupFiles([corruptPath1, corruptPath2]);
     }
   });
+
+  test('Non-face images return INCONCLUSIVE with 0 faces and null similarityScore (No False Positives)', async () => {
+    const p1 = path.resolve(__dirname, '../uploads/tmp/test_diagram.jpg');
+    const p2 = path.resolve(__dirname, '../uploads/tmp/test_landscape.jpg');
+
+    const result = await runPythonCvEngine('id_photo_verification', p1, p2);
+    assert.equal(result.success, true);
+    assert.equal(result.faceComparison.decision, 'INCONCLUSIVE');
+    assert.equal(result.faceComparison.similarityScore, null);
+    assert.equal(result.imageQuality.image1.facesDetected, 0);
+    assert.equal(result.imageQuality.image2.facesDetected, 0);
+  });
+
+  test('Same-person image pair yields LIKELY SAME PERSON with high similarity', async () => {
+    const p1 = path.resolve(__dirname, '../uploads/tmp/david1.jpg');
+    const p2 = path.resolve(__dirname, '../uploads/tmp/david2.jpg');
+
+    const result = await runPythonCvEngine('id_photo_verification', p1, p2);
+    assert.equal(result.success, true);
+    assert.equal(result.faceComparison.decision, 'LIKELY SAME PERSON');
+    assert.ok(result.faceComparison.similarityScore >= 75.0);
+    assert.equal(result.imageQuality.image1.facesDetected, 1);
+    assert.equal(result.imageQuality.image2.facesDetected, 1);
+  });
+
+  test('Different-person image pair yields LIKELY DIFFERENT PERSON', async () => {
+    const p1 = path.resolve(__dirname, '../uploads/tmp/david1.jpg');
+    const p2 = path.resolve(__dirname, '../uploads/tmp/face_lena.jpg');
+
+    const result = await runPythonCvEngine('id_photo_verification', p1, p2);
+    assert.equal(result.success, true);
+    assert.equal(result.faceComparison.decision, 'LIKELY DIFFERENT PERSON');
+    assert.ok(result.faceComparison.similarityScore < 55.0);
+    assert.equal(result.imageQuality.image1.facesDetected, 1);
+    assert.equal(result.imageQuality.image2.facesDetected, 1);
+  });
+
+  test('Face + Landscape yields INCONCLUSIVE with 1 face vs 0 faces and null score', async () => {
+    const p1 = path.resolve(__dirname, '../uploads/tmp/david1.jpg');
+    const p2 = path.resolve(__dirname, '../uploads/tmp/test_landscape.jpg');
+
+    const result = await runPythonCvEngine('id_photo_verification', p1, p2);
+    assert.equal(result.success, true);
+    assert.equal(result.faceComparison.decision, 'INCONCLUSIVE');
+    assert.equal(result.faceComparison.similarityScore, null);
+    assert.equal(result.imageQuality.image1.facesDetected, 1);
+    assert.equal(result.imageQuality.image2.facesDetected, 0);
+  });
+
+  test('Face + Diagram yields INCONCLUSIVE with 1 face vs 0 faces and null score', async () => {
+    const p1 = path.resolve(__dirname, '../uploads/tmp/david1.jpg');
+    const p2 = path.resolve(__dirname, '../uploads/tmp/test_diagram.jpg');
+
+    const result = await runPythonCvEngine('id_photo_verification', p1, p2);
+    assert.equal(result.success, true);
+    assert.equal(result.faceComparison.decision, 'INCONCLUSIVE');
+    assert.equal(result.faceComparison.similarityScore, null);
+    assert.equal(result.imageQuality.image1.facesDetected, 1);
+    assert.equal(result.imageQuality.image2.facesDetected, 0);
+  });
+
+  test('Multiple faces in verification image yields INCONCLUSIVE with ambiguity warning', async () => {
+    const p1 = path.resolve(__dirname, '../uploads/tmp/david1.jpg');
+    const p2 = path.resolve(__dirname, '../uploads/tmp/multi_face.jpg');
+
+    const result = await runPythonCvEngine('id_photo_verification', p1, p2);
+    assert.equal(result.success, true);
+    assert.equal(result.faceComparison.decision, 'INCONCLUSIVE');
+    assert.equal(result.faceComparison.similarityScore, null);
+    assert.equal(result.imageQuality.image1.facesDetected, 1);
+    assert.equal(result.imageQuality.image2.facesDetected, 2);
+    assert.match(result.faceComparison.explanation, /Multiple faces/);
+  });
+
+  test('Blurry image is flagged in quality assessment and fails face comparison gracefully', async () => {
+    const p1 = path.resolve(__dirname, '../uploads/tmp/david1.jpg');
+    const p2 = path.resolve(__dirname, '../uploads/tmp/blurry_face.jpg');
+
+    const result = await runPythonCvEngine('id_photo_verification', p1, p2);
+    assert.equal(result.success, true);
+    assert.equal(result.faceComparison.decision, 'INCONCLUSIVE');
+    assert.equal(result.imageQuality.image2.suitableForComparison, false);
+    assert.match(result.imageQuality.image2.sharpnessRating, /Blurry/);
+  });
+
+  test('CompreFace unavailable or unreachable falls back cleanly to local engine', async () => {
+    const { compareIdAndSelfieFaces } = await import('../services/faceComparisonService.js');
+    const originalUrl = process.env.COMPREFACE_URL;
+    const originalKey = process.env.COMPREFACE_API_KEY;
+
+    try {
+      // Point to an invalid unreachable port to simulate network failure
+      process.env.COMPREFACE_URL = 'http://127.0.0.1:59999';
+      process.env.COMPREFACE_API_KEY = 'test_unreachable_key';
+
+      const p1 = path.resolve(__dirname, '../uploads/tmp/david1.jpg');
+      const p2 = path.resolve(__dirname, '../uploads/tmp/david2.jpg');
+
+      // Should seamlessly fall back to local engine and succeed
+      const result = await compareIdAndSelfieFaces(p1, p2);
+      assert.ok(result.faceComparison);
+      assert.equal(result.faceComparison.decision, 'LIKELY SAME PERSON');
+      assert.ok(result.faceComparison.similarityScore >= 75.0);
+    } finally {
+      process.env.COMPREFACE_URL = originalUrl;
+      process.env.COMPREFACE_API_KEY = originalKey;
+    }
+  });
 });
