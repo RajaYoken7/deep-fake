@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Trophy,
   Medal,
@@ -9,39 +9,68 @@ import {
   Flame,
   UserCheck,
   CheckCircle,
+  RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button, GlassCard } from '../../components/UI';
 import { BackButton, PublicNav } from '../../pages/Modules';
+import { useAuth } from '../../contexts/AuthContext';
 import { getLeaderboard } from './services/gameApi';
 import './game.css';
 
 export function LeaderboardPage({ go, back }) {
+  const { user } = useAuth();
   const [filter, setFilter] = useState('all_time'); // 'all_time' | 'monthly' | 'weekly'
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState({ leaderboard: [], currentUserRanking: null });
 
-  useEffect(() => {
-    let active = true;
-    async function fetchLeaderboard() {
-      try {
-        setLoading(true);
-        const result = await getLeaderboard(filter, 100);
-        if (active) {
-          setData(result);
-        }
-      } catch (err) {
-        console.error('Failed to load leaderboard:', err);
-      } finally {
-        if (active) setLoading(false);
+  const fetchLeaderboard = useCallback(async (isManualRefresh = false) => {
+    try {
+      if (isManualRefresh) setRefreshing(true);
+      else setLoading(true);
+      const result = await getLeaderboard(filter, 100);
+      if (result) {
+        setData(result);
       }
+    } catch (err) {
+      console.error('Failed to load leaderboard:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-
-    fetchLeaderboard();
-    return () => {
-      active = false;
-    };
   }, [filter]);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  // Current user's standing card information
+  const userRankInfo = useMemo(() => {
+    if (data.currentUserRanking) return data.currentUserRanking;
+    if (!user) return null;
+    const found = (data.leaderboard || []).find(
+      (p) =>
+        p.isCurrentUser ||
+        p.userId === user.id ||
+        p.userId === user._id ||
+        p.name === user.name
+    );
+    if (found) return found;
+    return {
+      rank: '--',
+      name: user.name,
+      username: user.username || user.email?.split('@')[0],
+      profilePicture: user.profilePicture || '',
+      currentRank: user.currentRank || 'Bronze Detective',
+      level: user.currentLevel || 1,
+      xp: filter === 'all_time' ? (user.totalXP || 0) : 0,
+      accuracy: 0,
+      gamesPlayed: user.gamesPlayed || 0,
+      isCurrentUser: true,
+    };
+  }, [data.currentUserRanking, data.leaderboard, user, filter]);
 
   // Client-side search filtering
   const filteredPlayers = useMemo(() => {
@@ -94,34 +123,153 @@ export function LeaderboardPage({ go, back }) {
             >
               <Trophy size={16} /> GLOBAL FORENSIC RANKINGS
             </div>
-            <h1>GLOBAL DETECTIVE LEADERBOARD</h1>
+            <h1>GLOBAL FORENSIC LEADERBOARD</h1>
             <p>
-              Compete with detectives around the world and prove your ability to identify AI-generated
-              images.
+              Compete with investigators across DeepTrust Academy. Earn EXP in Cyber Crime Investigation
+              and Deepfake Detective to rise through the global ranks.
             </p>
           </div>
 
-          {/* Time Filter Tabs */}
-          <div className="filter-tabs">
+          {/* Time Filter Tabs & Refresh Button */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+            <div className="filter-tabs" style={{ margin: 0 }}>
+              <button
+                className={`filter-tab-btn ${filter === 'all_time' ? 'active' : ''}`}
+                onClick={() => setFilter('all_time')}
+              >
+                All Time
+              </button>
+              <button
+                className={`filter-tab-btn ${filter === 'monthly' ? 'active' : ''}`}
+                onClick={() => setFilter('monthly')}
+              >
+                Monthly
+              </button>
+              <button
+                className={`filter-tab-btn ${filter === 'weekly' ? 'active' : ''}`}
+                onClick={() => setFilter('weekly')}
+              >
+                Weekly
+              </button>
+            </div>
+
             <button
-              className={`filter-tab-btn ${filter === 'all_time' ? 'active' : ''}`}
-              onClick={() => setFilter('all_time')}
+              onClick={() => fetchLeaderboard(true)}
+              disabled={loading || refreshing}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                border: '1.5px solid #000000',
+                background: '#ffffff',
+                color: '#000000',
+                fontWeight: 700,
+                fontSize: '13px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
             >
-              All Time
-            </button>
-            <button
-              className={`filter-tab-btn ${filter === 'monthly' ? 'active' : ''}`}
-              onClick={() => setFilter('monthly')}
-            >
-              Monthly
-            </button>
-            <button
-              className={`filter-tab-btn ${filter === 'weekly' ? 'active' : ''}`}
-              onClick={() => setFilter('weekly')}
-            >
-              Weekly
+              <RotateCcw size={15} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+              {refreshing ? 'Updating Rankings...' : 'Refresh Leaderboard'}
             </button>
           </div>
+
+          {/* Current User Standings Card */}
+          {user && userRankInfo && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+                padding: '16px 22px',
+                borderRadius: '16px',
+                border: '2px solid #000000',
+                background: '#ffffff',
+                color: '#000000',
+                marginBottom: '24px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '12px',
+                    background: '#000000',
+                    color: '#ffffff',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: '18px',
+                    fontWeight: 900,
+                  }}
+                >
+                  {userRankInfo.profilePicture ? (
+                    <img
+                      src={userRankInfo.profilePicture}
+                      alt=""
+                      style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    userRankInfo.name?.charAt(0).toUpperCase() || 'U'
+                  )}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <strong style={{ fontSize: '16px', color: '#000000' }}>{userRankInfo.name}</strong>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 900,
+                        background: '#000000',
+                        color: '#ffffff',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      YOU
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#666666', fontWeight: 600 }}>
+                    Lvl {userRankInfo.level} · {userRankInfo.currentRank}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '28px', flexWrap: 'wrap' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '11px', color: '#666666', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {filter === 'all_time' ? 'All-Time Rank' : filter === 'monthly' ? 'Monthly Rank' : 'Weekly Rank'}
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#000000' }}>
+                    {userRankInfo.rank === 1 ? '🥇 #1' : userRankInfo.rank === 2 ? '🥈 #2' : userRankInfo.rank === 3 ? '🥉 #3' : userRankInfo.rank ? `#${userRankInfo.rank}` : '--'}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '11px', color: '#666666', fontWeight: 700, textTransform: 'uppercase' }}>
+                    EXP Balance
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#000000' }}>
+                    {(userRankInfo.xp ?? 0).toLocaleString()} EXP
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '11px', color: '#666666', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Accuracy
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#000000' }}>
+                    {userRankInfo.accuracy ?? 0}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Top 3 Podium (when all_time has at least 1 player) */}
           {!loading && data.leaderboard.length >= 1 && (
@@ -314,9 +462,14 @@ export function LeaderboardPage({ go, back }) {
               />
             </div>
 
-            <Button onClick={() => go('deepfake-detective')}>
-              <Gamepad2 size={16} /> Play Deepfake Detective
-            </Button>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <Button onClick={() => go('cyber-crime-investigation')}>
+                <ShieldCheck size={16} /> Play Cyber Crime
+              </Button>
+              <Button onClick={() => go('deepfake-detective')}>
+                <Gamepad2 size={16} /> Play Deepfake Detective
+              </Button>
+            </div>
           </div>
 
           {/* Table Container */}
@@ -343,10 +496,14 @@ export function LeaderboardPage({ go, back }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPlayers.map((player) => (
+                    {filteredPlayers.map((player) => {
+                      const isCurrent =
+                        player.isCurrentUser ||
+                        Boolean(user && (player.userId === user.id || player.userId === user._id || player.name === user.name));
+                      return (
                       <tr
                         key={player.userId}
-                        className={`leaderboard-row ${player.isCurrentUser ? 'current-user-row' : ''}`}
+                        className={`leaderboard-row ${isCurrent ? 'current-user-row' : ''}`}
                       >
                         <td style={{ textAlign: 'center', fontWeight: 800 }}>
                           {player.rank === 1 ? (
@@ -376,7 +533,7 @@ export function LeaderboardPage({ go, back }) {
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontWeight: 700 }}>{player.name}</span>
-                                {player.isCurrentUser && (
+                                {isCurrent && (
                                   <span
                                     style={{
                                       fontSize: '10px',
@@ -432,7 +589,8 @@ export function LeaderboardPage({ go, back }) {
                           {player.gamesPlayed}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

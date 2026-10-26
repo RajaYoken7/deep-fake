@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button, GlassCard, UploadBox } from '../../components/UI';
 import { BackButton, PublicNav } from '../../pages/Modules';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   startGameSession,
   submitGamePrediction,
@@ -33,9 +34,10 @@ import { AchievementsModal } from './AchievementsModal';
 import './game.css';
 
 export function DeepfakeDetectiveGame({ go, back, notify }) {
+  const { user, updateUser } = useAuth();
+
   // Navigation states: 'hub' | 'playing' | 'result' | 'summary'
   const [gameState, setGameState] = useState('hub');
-  const [gameMode, setGameMode] = useState('academy'); // 'academy' | 'custom'
 
   // User Stats & Session state
   const [playerStats, setPlayerStats] = useState(null);
@@ -43,9 +45,6 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
   const [sessionId, setSessionId] = useState(null);
   const [challenges, setChallenges] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  // Custom upload state
-  const [customFile, setCustomFile] = useState(null);
 
   // Submission & evaluation state
   const [submitting, setSubmitting] = useState(false);
@@ -75,15 +74,13 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
   }, []);
 
   // Start new challenge session
-  const handleStartChallenge = async (mode = 'academy') => {
+  const handleStartChallenge = async () => {
     try {
-      setGameMode(mode);
       setSubmitting(true);
       const data = await startGameSession();
       setSessionId(data.sessionId);
       setChallenges(data.challenges || []);
       setCurrentIndex(0);
-      setCustomFile(null);
       setCurrentResult(null);
       setShowClues(false);
       if (data.playerStats) setPlayerStats(data.playerStats);
@@ -99,25 +96,15 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
   const handleAnswer = async (prediction) => {
     if (submitting) return;
 
-    if (gameMode === 'custom' && !customFile?.file) {
-      if (notify) notify('Please select or upload an image first.');
-      return;
-    }
-
     try {
       setSubmitting(true);
 
+      const activeChallenge = challenges[currentIndex];
       const payload = {
         sessionId,
         userPrediction: prediction,
+        challengeId: activeChallenge?.id,
       };
-
-      if (gameMode === 'academy') {
-        const activeChallenge = challenges[currentIndex];
-        payload.challengeId = activeChallenge.id;
-      } else {
-        payload.file = customFile.file;
-      }
 
       const result = await submitGamePrediction(payload);
       setCurrentResult(result);
@@ -128,6 +115,14 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
           currentStreak: result.currentStreak,
           highestStreak: result.highestStreak,
         }));
+
+        if (updateUser) {
+          updateUser({
+            totalXP: result.playerStats.totalXP,
+            currentLevel: result.playerStats.currentLevel,
+            currentRank: result.playerStats.currentRank,
+          });
+        }
       }
 
       setGameState('result');
@@ -140,21 +135,13 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
 
   // Advance to next question or complete session
   const handleNextQuestion = async () => {
-    if (gameMode === 'academy') {
-      if (currentIndex + 1 < challenges.length) {
-        setCurrentIndex((i) => i + 1);
-        setCurrentResult(null);
-        setShowClues(false);
-        setGameState('playing');
-      } else {
-        await handleFinishSession();
-      }
-    } else {
-      // In custom mode, reset custom file
-      if (customFile?.url) URL.revokeObjectURL(customFile.url);
-      setCustomFile(null);
+    if (currentIndex + 1 < challenges.length) {
+      setCurrentIndex((i) => i + 1);
       setCurrentResult(null);
+      setShowClues(false);
       setGameState('playing');
+    } else {
+      await handleFinishSession();
     }
   };
 
@@ -165,11 +152,19 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
       if (sessionId) {
         const completed = await completeGameSession(sessionId);
         setSessionCompletedData(completed);
-        if (completed.playerStats) {
+        if (completed?.playerStats) {
           setPlayerStats((prev) => ({
             ...prev,
             ...completed.playerStats,
           }));
+
+          if (updateUser) {
+            updateUser({
+              totalXP: completed.playerStats.totalXP,
+              currentLevel: completed.playerStats.currentLevel,
+              currentRank: completed.playerStats.currentRank,
+            });
+          }
         }
       }
       setGameState('summary');
@@ -246,7 +241,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 </div>
 
                 <div className="game-hero-actions">
-                  <Button onClick={() => handleStartChallenge('academy')} disabled={loadingStats}>
+                  <Button onClick={() => handleStartChallenge()} disabled={loadingStats}>
                     <Gamepad2 size={16} /> Start Challenge
                   </Button>
                   <Button variant="secondary" onClick={() => setShowAchievementsModal(true)}>
@@ -308,18 +303,18 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 </div>
               </div>
 
-              {/* Game Modes Selection */}
+              {/* Game Mode Selection */}
               <div style={{ margin: '30px 0 16px' }}>
                 <span className="eyebrow" style={{ fontSize: '11px', fontWeight: 800, color: '#000000' }}>
-                  SELECT CHALLENGE MODE
+                  FORENSIC INVESTIGATION DECK
                 </span>
-                <h3 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 800 }}>Choose how you want to investigate</h3>
+                <h3 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 800 }}>Academy Challenge Deck</h3>
               </div>
 
-              <div className="game-mode-grid">
+              <div className="game-mode-grid" style={{ gridTemplateColumns: '1fr' }}>
                 <div
-                  className={`game-mode-card ${gameMode === 'academy' ? 'active' : ''}`}
-                  onClick={() => setGameMode('academy')}
+                  className="game-mode-card active"
+                  style={{ maxWidth: '650px', margin: '0 auto' }}
                 >
                   <div>
                     <span className="mode-badge academy">CURATED DECK</span>
@@ -329,25 +324,8 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                       photojournalism, and synthetic art verified by Sightengine.
                     </p>
                   </div>
-                  <Button onClick={() => handleStartChallenge('academy')} className="full-btn">
+                  <Button onClick={() => handleStartChallenge()} className="full-btn">
                     Play Academy Deck <ArrowRight size={16} />
-                  </Button>
-                </div>
-
-                <div
-                  className={`game-mode-card ${gameMode === 'custom' ? 'active' : ''}`}
-                  onClick={() => setGameMode('custom')}
-                >
-                  <div>
-                    <span className="mode-badge custom">CUSTOM UPLOAD</span>
-                    <h3>Custom Investigation</h3>
-                    <p>
-                      Upload any image from your device (JPG, PNG, WEBP), test your intuition by guessing REAL or FAKE,
-                      and have Sightengine GenAI independently verify it.
-                    </p>
-                  </div>
-                  <Button variant="secondary" onClick={() => handleStartChallenge('custom')} className="full-btn">
-                    Upload & Investigate <Upload size={16} />
                   </Button>
                 </div>
               </div>
@@ -389,11 +367,9 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
               <div className="play-header">
                 <div className="play-header-left">
                   <span className="question-pill">
-                    {gameMode === 'academy'
-                      ? `CASE ${currentIndex + 1} OF ${challenges.length}`
-                      : 'CUSTOM INVESTIGATION'}
+                    CASE {currentIndex + 1} OF {challenges.length}
                   </span>
-                  {gameMode === 'academy' && currentChallenge && (
+                  {currentChallenge && (
                     <span style={{ fontSize: '12px', fontWeight: 700, color: '#000000' }}>
                       {currentChallenge.category} · {currentChallenge.difficulty}
                     </span>
@@ -412,8 +388,8 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 </div>
               </div>
 
-              {/* Clues Accordion (Academy Mode) */}
-              {gameMode === 'academy' && currentChallenge?.clues && (
+              {/* Clues Accordion */}
+              {currentChallenge?.clues && (
                 <div className="clues-box">
                   <div className="clues-trigger" onClick={() => setShowClues(!showClues)}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -440,50 +416,10 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                   </div>
                 )}
 
-                {gameMode === 'academy' && currentChallenge?.imageUrl && (
+                {currentChallenge?.imageUrl && (
                   <img src={currentChallenge.imageUrl} alt={currentChallenge.title || 'Case challenge'} />
                 )}
-
-                {gameMode === 'custom' && (
-                  <div style={{ padding: '24px', width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
-                    {customFile?.url ? (
-                      <img src={customFile.url} alt="Custom upload" style={{ maxHeight: '420px', borderRadius: '4px' }} />
-                    ) : (
-                      <div style={{ width: '100%', maxWidth: '480px' }}>
-                        <UploadBox
-                          label="Drop image to investigate"
-                          file={customFile}
-                          onFile={(f) => setCustomFile(f)}
-                          onInvalid={(msg) => notify && notify(msg)}
-                          helper="PNG, JPG or WEBP up to 10 MB · Preview will appear here"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
-
-              {/* Custom Image Change Option */}
-              {gameMode === 'custom' && customFile && !submitting && (
-                <div style={{ textAlign: 'center', marginBottom: '14px' }}>
-                  <button
-                    onClick={() => {
-                      if (customFile.url) URL.revokeObjectURL(customFile.url);
-                      setCustomFile(null);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#000000',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Choose a different image
-                  </button>
-                </div>
-              )}
 
               {/* Prompt Instruction */}
               <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>
@@ -499,7 +435,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
               <div className="decision-buttons-grid">
                 <button
                   className="btn-decision btn-real"
-                  disabled={submitting || (gameMode === 'custom' && !customFile?.file)}
+                  disabled={submitting}
                   onClick={() => handleAnswer('REAL')}
                 >
                   <span className="decision-title">REAL</span>
@@ -508,7 +444,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
 
                 <button
                   className="btn-decision btn-fake"
-                  disabled={submitting || (gameMode === 'custom' && !customFile?.file)}
+                  disabled={submitting}
                   onClick={() => handleAnswer('FAKE')}
                 >
                   <span className="decision-title">FAKE</span>

@@ -35,11 +35,22 @@ import {
   Flame,
   CheckCircle2,
   XCircle,
+  BarChart3,
+  Lock,
+  Unlock,
+  Check,
+  ChevronRight,
+  TrendingUp,
+  Layers,
+  Play,
 } from 'lucide-react';
 import { Button, GlassCard, SectionHead } from '../components/UI';
 import { BackButton, PublicNav } from './Modules';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserGameStats } from '../features/game/services/gameApi';
+import '../features/game/cyberCrime/cyberCrime.css';
+import { loadUserProgress, calculateGameAnalytics } from '../features/game/cyberCrime/cyberCrimeStorage';
+import { CYBER_CRIME_BADGES_CATALOG } from '../features/game/cyberCrime/cyberCrimeBadges';
 import {
   updateUserProfile,
   changeUserPassword,
@@ -566,19 +577,74 @@ export function HistoryPage({ go, back, notify }) {
   );
 }
 
+const GLOBAL_GAME_LEVELS = [
+  { level: 1, xpRequired: 0, title: 'Cadet Detective', badge: '🥉' },
+  { level: 2, xpRequired: 250, title: 'Image Explorer', badge: '🔍' },
+  { level: 3, xpRequired: 600, title: 'Fake Spotter', badge: '🎯' },
+  { level: 4, xpRequired: 1200, title: 'Digital Detective', badge: '🕵️' },
+  { level: 5, xpRequired: 2000, title: 'Deepfake Analyst', badge: '🔬' },
+  { level: 6, xpRequired: 3500, title: 'Truth Guardian', badge: '🛡️' },
+  { level: 7, xpRequired: 5500, title: 'Cyber Investigator', badge: '⚡' },
+  { level: 8, xpRequired: 8000, title: 'Trust Guardian', badge: '💎' },
+  { level: 9, xpRequired: 12000, title: 'Master Detective', badge: '🌟' },
+  { level: 10, xpRequired: 18000, title: 'DeepTrust Legend', badge: '👑' },
+];
+
+function getGlobalLevelInfo(totalXP = 0) {
+  const xp = Math.max(0, Number(totalXP) || 0);
+  let currentLevelObj = GLOBAL_GAME_LEVELS[0];
+
+  for (let i = GLOBAL_GAME_LEVELS.length - 1; i >= 0; i--) {
+    if (xp >= GLOBAL_GAME_LEVELS[i].xpRequired) {
+      currentLevelObj = GLOBAL_GAME_LEVELS[i];
+      break;
+    }
+  }
+
+  const currentLevelIndex = GLOBAL_GAME_LEVELS.findIndex((l) => l.level === currentLevelObj.level);
+  const nextLevelObj = GLOBAL_GAME_LEVELS[currentLevelIndex + 1] || null;
+
+  const currentMinXP = currentLevelObj.xpRequired;
+  const nextXP = nextLevelObj ? nextLevelObj.xpRequired : currentMinXP;
+  const xpInLevel = xp - currentMinXP;
+  const xpForNext = nextLevelObj ? nextXP - currentMinXP : 1;
+  const progressPercent = nextLevelObj
+    ? Math.min(100, Math.max(0, Math.round((xpInLevel / xpForNext) * 100)))
+    : 100;
+
+  return {
+    level: currentLevelObj.level,
+    title: currentLevelObj.title,
+    badge: currentLevelObj.badge,
+    totalXP: xp,
+    currentLevelMinXP: currentMinXP,
+    nextLevelXP: nextXP,
+    xpNeededForNext: nextLevelObj ? Math.max(0, nextXP - xp) : 0,
+    progressPercent,
+    nextTitle: nextLevelObj ? nextLevelObj.title : 'DeepTrust Legend',
+  };
+}
+
 /**
  * User Profile Page
  * Displays authenticated user's profile, editable details, password change, stats,
- * and the Security & Session Dashboard (Feature A).
+ * unified Global Progress, separate Game Analysis, Badges catalog, and Security Sessions.
  */
 export function ProfilePage({ go, back, notify }) {
   const { user, updateUser, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'game' | 'sessions'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'analytics' | 'badges' | 'sessions'
   const [editing, setEditing] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [stats, setStats] = useState({ detections: 0, identityChecks: 0, missions: 0, games: 0 });
   const [gameStats, setGameStats] = useState(null);
+
+  // Cyber Crime Progress & Analytics
+  const userId = user?.id || user?._id || user?.email || 'detective_guest';
+  const [cyberProgress, setCyberProgress] = useState(() => loadUserProgress(userId));
+  const [analyticsGameTab, setAnalyticsGameTab] = useState('all'); // 'all' | 'cyber_crime' | 'deepfake'
+  const [badgeFilter, setBadgeFilter] = useState('all'); // 'all' | 'cyber_crime' | 'deepfake'
+  const [cyberBadgeCategory, setCyberBadgeCategory] = useState('All');
 
   // Sessions state
   const [sessions, setSessions] = useState([]);
@@ -605,6 +671,8 @@ export function ProfilePage({ go, back, notify }) {
       setDraftName(user.name || '');
       setDraftEmail(user.email || '');
       setDraftBio(user.bio || '');
+      const id = user.id || user._id || user.email || 'detective_guest';
+      setCyberProgress(loadUserProgress(id));
     }
     async function loadStats() {
       try {
@@ -624,7 +692,15 @@ export function ProfilePage({ go, back, notify }) {
     }
     loadStats();
     loadGameStatsData();
-  }, [user]);
+  }, [user, activeTab]);
+
+  // Derived metrics for separate games and global progress
+  const cyberAnalytics = useMemo(() => calculateGameAnalytics(cyberProgress), [cyberProgress]);
+  const globalLevelInfo = useMemo(() => getGlobalLevelInfo(user?.totalXP || 0), [user?.totalXP]);
+  const cyberUnlockedBadges = cyberProgress?.unlockedBadges || [];
+  const cyberUnlockedIds = useMemo(() => new Set(cyberUnlockedBadges.map((b) => b.id)), [cyberUnlockedBadges]);
+  const deepfakeAchievements = gameStats?.achievements || [];
+  const deepfakeUnlockedCount = deepfakeAchievements.filter((a) => a.isUnlocked).length;
 
   // Load sessions when switching to sessions tab
   useEffect(() => {
@@ -780,8 +856,8 @@ export function ProfilePage({ go, back, notify }) {
         </div>
       </GlassCard>
 
-      {/* Tabs: Overview vs Active Sessions */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      {/* Profile Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '22px', flexWrap: 'wrap' }}>
         <Button
           variant={activeTab === 'overview' ? 'primary' : 'secondary'}
           onClick={() => setActiveTab('overview')}
@@ -789,10 +865,16 @@ export function ProfilePage({ go, back, notify }) {
           <UserRound size={16} /> Profile Overview
         </Button>
         <Button
-          variant={activeTab === 'game' ? 'primary' : 'secondary'}
-          onClick={() => setActiveTab('game')}
+          variant={activeTab === 'analytics' || activeTab === 'game' ? 'primary' : 'secondary'}
+          onClick={() => setActiveTab('analytics')}
         >
-          <Gamepad2 size={16} /> Game Statistics
+          <BarChart3 size={16} /> Game Analysis & Statistics
+        </Button>
+        <Button
+          variant={activeTab === 'badges' ? 'primary' : 'secondary'}
+          onClick={() => setActiveTab('badges')}
+        >
+          <Award size={16} /> Game Badges & Achievements ({cyberUnlockedBadges.length + deepfakeUnlockedCount})
         </Button>
         <Button
           variant={activeTab === 'sessions' ? 'primary' : 'secondary'}
@@ -893,7 +975,7 @@ export function ProfilePage({ go, back, notify }) {
               </div>
               <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <Button onClick={() => go('deepfake-detective')}>Play Detective</Button>
-                <Button variant="secondary" onClick={() => setActiveTab('game')}>Game Stats</Button>
+                <Button variant="secondary" onClick={() => setActiveTab('analytics')}>Game Analysis & Stats</Button>
               </div>
             </GlassCard>
           </div>
@@ -914,10 +996,13 @@ export function ProfilePage({ go, back, notify }) {
             </span>
           </GlassCard>
         </>
-      ) : activeTab === 'game' ? (
-        /* Section 7: Deepfake Detective Game Statistics Dashboard */
-        <div>
-          <GlassCard style={{ padding: '24px 28px', marginBottom: '22px' }}>
+      ) : (activeTab === 'analytics' || activeTab === 'game') ? (
+        /* ========================================================
+           SECTION A: GLOBAL PROGRESS & SECTION C: GAME ANALYSIS
+           ======================================================== */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          {/* SECTION A: GLOBAL PROGRESS */}
+          <GlassCard style={{ padding: '24px 28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
                 <div
@@ -925,31 +1010,45 @@ export function ProfilePage({ go, back, notify }) {
                     width: '68px',
                     height: '68px',
                     borderRadius: '18px',
-                    background: '#000000', border: '1px solid #000000',
+                    background: 'var(--surface2, rgba(0, 0, 0, 0.05))',
+                    border: '1px solid var(--line, rgba(255, 255, 255, 0.15))',
                     display: 'grid',
                     placeItems: 'center',
                     fontSize: '34px',
-                    boxShadow: 'none',
                   }}
                 >
-                  {gameStats?.levelInfo?.badge || '🕵️'}
+                  {globalLevelInfo.badge}
                 </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{gameStats?.currentRank || 'Bronze Detective'}</h2>
-                    <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: '#000000', color: '#ffffff', fontWeight: 800, border: '1px solid #000000' }}>
-                      LEVEL {gameStats?.currentLevel || 1}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 800 }}>
+                      {user?.currentRank || globalLevelInfo.title}
+                    </h2>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        padding: '3px 10px',
+                        borderRadius: '6px',
+                        background: 'var(--cyan, #0284c7)',
+                        color: '#ffffff',
+                        fontWeight: 800,
+                      }}
+                    >
+                      GLOBAL LEVEL {globalLevelInfo.level}
                     </span>
                   </div>
                   <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                    Title: <strong>{gameStats?.levelInfo?.title || 'Beginner'}</strong> · {(gameStats?.totalXP || 0).toLocaleString()} Total XP
+                    Global Rank: <strong>{globalLevelInfo.title}</strong> · {(user?.totalXP || 0).toLocaleString()} Total Global EXP
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <Button onClick={() => go('deepfake-detective')}>
-                  <Gamepad2 size={16} /> Play Detective
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <Button onClick={() => go('cyber-crime')}>
+                  <ShieldCheck size={16} /> Cyber Crime Game
+                </Button>
+                <Button variant="secondary" onClick={() => go('deepfake-detective')}>
+                  <Gamepad2 size={16} /> Deepfake Detective
                 </Button>
                 <Button variant="secondary" onClick={() => go('leaderboard')}>
                   <Trophy size={16} /> Leaderboard
@@ -957,121 +1056,919 @@ export function ProfilePage({ go, back, notify }) {
               </div>
             </div>
 
-            {/* Level Progress */}
+            {/* Level Progression Indicator */}
             <div style={{ marginTop: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
-                <span style={{ color: 'var(--cyan)' }}>Level Progress ({gameStats?.levelInfo?.progressPercent || 0}%)</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
+                <span style={{ color: 'var(--cyan, #0284c7)', fontWeight: 700 }}>
+                  Global Level Progress ({globalLevelInfo.progressPercent}%)
+                </span>
                 <span style={{ color: 'var(--muted)' }}>
-                  {gameStats?.levelInfo?.xpNeededForNext > 0
-                    ? `${gameStats.levelInfo.xpNeededForNext.toLocaleString()} XP to Level ${(gameStats?.currentLevel || 1) + 1}`
-                    : 'DeepTrust Legend (Max Level)'}
+                  {globalLevelInfo.xpNeededForNext > 0
+                    ? `${globalLevelInfo.xpNeededForNext.toLocaleString()} EXP to Level ${globalLevelInfo.level + 1} (${globalLevelInfo.nextTitle})`
+                    : 'DeepTrust Legend (Max Rank Reached)'}
                 </span>
               </div>
-              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: '#000000', overflow: 'hidden' }}>
+              <div style={{ width: '100%', height: '10px', borderRadius: '5px', background: 'var(--surface2, rgba(0,0,0,0.1))', overflow: 'hidden' }}>
                 <div
                   style={{
-                    width: `${gameStats?.levelInfo?.progressPercent || 0}%`,
+                    width: `${globalLevelInfo.progressPercent}%`,
                     height: '100%',
-                    background: '#000000',
-                    borderRadius: '4px',
+                    background: 'linear-gradient(90deg, var(--cyan, #0284c7), #3b82f6)',
+                    borderRadius: '5px',
+                    transition: 'width 0.5s ease',
                   }}
                 />
+              </div>
+              <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={14} color="var(--cyan, #0284c7)" />
+                <span>
+                  <strong>Unified Progression:</strong> EXP earned from Cyber Crime Investigation, Deepfake Detective, and Daily Missions contributes to this shared global total.
+                </span>
               </div>
             </div>
           </GlassCard>
 
-          {/* Metric Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '22px' }}>
-            <GlassCard style={{ padding: '18px 20px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>TOTAL XP</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
-                {(gameStats?.totalXP || 0).toLocaleString()} XP
+          {/* SECTION C: GAME ANALYSIS AND STATISTICS */}
+          <div>
+            {/* Sub-tab Navigation */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginBottom: '18px',
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>
+                  Game Analysis & Statistics
+                </h3>
+                <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--muted)' }}>
+                  Independent accuracy and performance metrics for each game in DeepTrust Academy.
+                </p>
               </div>
-            </GlassCard>
 
-            <GlassCard style={{ padding: '18px 20px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>ACCURACY</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
-                {gameStats?.accuracy || 0}%
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setAnalyticsGameTab('all')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: analyticsGameTab === 'all' ? '1px solid var(--cyan, #0284c7)' : '1px solid var(--line, #e2e8f0)',
+                    background: analyticsGameTab === 'all' ? 'var(--cyan, #0284c7)' : 'transparent',
+                    color: analyticsGameTab === 'all' ? '#ffffff' : 'var(--text)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  All Games Comparison
+                </button>
+                <button
+                  onClick={() => setAnalyticsGameTab('cyber_crime')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: analyticsGameTab === 'cyber_crime' ? '1px solid var(--cyan, #0284c7)' : '1px solid var(--line, #e2e8f0)',
+                    background: analyticsGameTab === 'cyber_crime' ? 'var(--cyan, #0284c7)' : 'transparent',
+                    color: analyticsGameTab === 'cyber_crime' ? '#ffffff' : 'var(--text)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  🛡️ Cyber Crime Investigation
+                </button>
+                <button
+                  onClick={() => setAnalyticsGameTab('deepfake')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: analyticsGameTab === 'deepfake' ? '1px solid var(--cyan, #0284c7)' : '1px solid var(--line, #e2e8f0)',
+                    background: analyticsGameTab === 'deepfake' ? 'var(--cyan, #0284c7)' : 'transparent',
+                    color: analyticsGameTab === 'deepfake' ? '#ffffff' : 'var(--text)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  🕵️ Deepfake Detective
+                </button>
               </div>
-              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Decisive predictions only</span>
-            </GlassCard>
+            </div>
 
-            <GlassCard style={{ padding: '18px 20px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>GLOBAL LEADERBOARD</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
-                #{gameStats?.leaderboardPosition || '--'}
-              </div>
-              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Global ranking</span>
-            </GlassCard>
+            {/* SUB-VIEW 1: ALL GAMES COMPARISON */}
+            {analyticsGameTab === 'all' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Cyber Crime Comparison Card */}
+                <GlassCard style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '24px' }}>🛡️</span>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>
+                          Cyber Crime Investigation
+                        </h4>
+                        <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                          3-Round Interactive Scenarios
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        background: 'rgba(2, 132, 199, 0.12)',
+                        color: 'var(--cyan, #0284c7)',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Game 1
+                    </span>
+                  </div>
 
-            <GlassCard style={{ padding: '18px 20px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>WINNING STREAK</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
-                🔥 {gameStats?.currentStreak || 0}
+                  <div style={{ display: 'grid', gap: '10px', margin: '18px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Accuracy</span>
+                      <strong style={{ fontSize: '15px', color: 'var(--cyan, #0284c7)' }}>
+                        {cyberAnalytics.overallAccuracy !== null ? `${cyberAnalytics.overallAccuracy}%` : '0%'}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Completed Attempts</span>
+                      <strong style={{ fontSize: '14px' }}>{cyberAnalytics.completedCampaignCount}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Attempts</span>
+                      <strong style={{ fontSize: '14px' }}>{cyberAnalytics.totalAttempts}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Best Accuracy</span>
+                      <strong style={{ fontSize: '14px' }}>
+                        {cyberAnalytics.bestAccuracy !== null ? `${cyberAnalytics.bestAccuracy}%` : 'N/A'}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Average Accuracy</span>
+                      <strong style={{ fontSize: '14px' }}>
+                        {cyberAnalytics.averageAccuracy !== null ? `${cyberAnalytics.averageAccuracy}%` : 'N/A'}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Badges Unlocked</span>
+                      <strong style={{ fontSize: '14px' }}>
+                        {cyberUnlockedBadges.length} / {CYBER_CRIME_BADGES_CATALOG.length}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <Button
+                      style={{ flex: 1 }}
+                      variant="secondary"
+                      onClick={() => setAnalyticsGameTab('cyber_crime')}
+                    >
+                      <BarChart3 size={16} /> Detailed Analysis
+                    </Button>
+                    <Button onClick={() => go('cyber-crime')}>
+                      <Play size={16} /> Play
+                    </Button>
+                  </div>
+                </GlassCard>
+
+                {/* Deepfake Detective Comparison Card */}
+                <GlassCard style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '24px' }}>🕵️</span>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>
+                          Deepfake Detective
+                        </h4>
+                        <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                          Academy Visual Forensics Deck
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        background: 'rgba(139, 92, 246, 0.12)',
+                        color: '#8b5cf6',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Game 2
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '10px', margin: '18px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Accuracy</span>
+                      <strong style={{ fontSize: '15px', color: '#8b5cf6' }}>
+                        {gameStats?.accuracy || 0}%
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Completed Games</span>
+                      <strong style={{ fontSize: '14px' }}>{gameStats?.gamesPlayed || 0}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Images Analysed</span>
+                      <strong style={{ fontSize: '14px' }}>{gameStats?.totalAttempts || 0}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Winning Streak</span>
+                      <strong style={{ fontSize: '14px' }}>🔥 {gameStats?.currentStreak || 0}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Global Ranking</span>
+                      <strong style={{ fontSize: '14px' }}>#{gameStats?.leaderboardPosition || '--'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Forensic Badges</span>
+                      <strong style={{ fontSize: '14px' }}>
+                        {deepfakeUnlockedCount} / 8
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <Button
+                      style={{ flex: 1 }}
+                      variant="secondary"
+                      onClick={() => setAnalyticsGameTab('deepfake')}
+                    >
+                      <BarChart3 size={16} /> Detailed Analysis
+                    </Button>
+                    <Button onClick={() => go('deepfake-detective')}>
+                      <Play size={16} /> Play
+                    </Button>
+                  </div>
+                </GlassCard>
               </div>
-              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Highest: {gameStats?.highestStreak || 0} consecutive</span>
-            </GlassCard>
+            )}
+
+            {/* SUB-VIEW 2: CYBER CRIME INVESTIGATION DETAILED PANEL */}
+            {analyticsGameTab === 'cyber_crime' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Cyber Crime Primary KPI Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      ACCURACY
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, color: 'var(--cyan, #0284c7)', marginTop: '4px' }}>
+                      {cyberAnalytics.overallAccuracy !== null ? `${cyberAnalytics.overallAccuracy}%` : '0%'}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      (Correct / Evaluated) × 100
+                    </span>
+                  </GlassCard>
+
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      COMPLETED GAMES
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>
+                      {cyberAnalytics.completedCampaignCount}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      {cyberAnalytics.totalAttempts} total attempts started
+                    </span>
+                  </GlassCard>
+
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      BEST ACCURACY
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>
+                      {cyberAnalytics.bestAccuracy !== null ? `${cyberAnalytics.bestAccuracy}%` : 'N/A'}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      Avg: {cyberAnalytics.averageAccuracy !== null ? `${cyberAnalytics.averageAccuracy}%` : 'N/A'}
+                    </span>
+                  </GlassCard>
+
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      ROUNDS CLEARED
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>
+                      {cyberAnalytics.totalRoundsCompleted}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      {cyberAnalytics.completedMissionsCount} daily missions solved
+                    </span>
+                  </GlassCard>
+                </div>
+
+                {/* Round-wise Breakdown & Highlights */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                  <GlassCard style={{ padding: '22px' }}>
+                    <h4 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800 }}>
+                      Round-wise Investigation Accuracy
+                    </h4>
+                    <div className="cyber-round-bars">
+                      {[
+                        {
+                          id: 'round-1',
+                          name: 'Round 1: The Phishing Trap',
+                          color: 'purple',
+                          stats: cyberAnalytics.roundWise['round-1'],
+                        },
+                        {
+                          id: 'round-2',
+                          name: 'Round 2: The Fake Identity',
+                          color: 'blue',
+                          stats: cyberAnalytics.roundWise['round-2'],
+                        },
+                        {
+                          id: 'round-3',
+                          name: 'Round 3: The Suspicious Transaction',
+                          color: 'cyan',
+                          stats: cyberAnalytics.roundWise['round-3'],
+                        },
+                      ].map((r) => (
+                        <div key={r.id} className="cyber-round-bar-item">
+                          <div className="cyber-round-bar-info">
+                            <span>{r.name}</span>
+                            <strong>
+                              {r.stats?.accuracy !== null ? `${r.stats.accuracy}%` : 'N/A'}{' '}
+                              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 400 }}>
+                                ({r.stats?.correct || 0}/{r.stats?.evaluated || 0})
+                              </span>
+                            </strong>
+                          </div>
+                          <div className="cyber-progress-track">
+                            <div
+                              className={`cyber-progress-fill ${r.color}`}
+                              style={{ width: `${r.stats?.accuracy || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="cyber-round-highlights" style={{ marginTop: '16px' }}>
+                      <div className="cyber-highlight-card best">
+                        <div className="cyber-highlight-icon">
+                          <Trophy size={18} />
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: '12px', display: 'block' }}>Best Performing Domain</strong>
+                          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                            {cyberAnalytics.bestPerformingRound
+                              ? `${cyberAnalytics.bestPerformingRound.name} (${cyberAnalytics.bestPerformingRound.accuracy}%)`
+                              : 'Pending more data'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="cyber-highlight-card challenging">
+                        <div className="cyber-highlight-icon">
+                          <AlertCircle size={18} />
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: '12px', display: 'block' }}>Most Challenging Domain</strong>
+                          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                            {cyberAnalytics.mostChallengingRound
+                              ? `${cyberAnalytics.mostChallengingRound.name} (${cyberAnalytics.mostChallengingRound.accuracy}%)`
+                              : 'Pending more data'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </GlassCard>
+
+                  {/* Evaluation Statistics Breakdown */}
+                  <GlassCard style={{ padding: '22px' }}>
+                    <h4 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800 }}>
+                      Answer Evaluation Statistics
+                    </h4>
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Questions Evaluated</span>
+                        <strong style={{ fontSize: '14px' }}>{cyberAnalytics.totalQuestionsEvaluated}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: '#10b981', fontSize: '13px' }}>Correct Clue Identifications</span>
+                        <strong style={{ fontSize: '14px', color: '#10b981' }}>{cyberAnalytics.totalCorrectAnswers}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: '#ef4444', fontSize: '13px' }}>Incorrect Answers</span>
+                        <strong style={{ fontSize: '14px', color: '#ef4444' }}>{cyberAnalytics.totalIncorrectAnswers}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Campaign Score Accumulated</span>
+                        <strong style={{ fontSize: '14px' }}>{cyberAnalytics.totalPoints} pts</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>EXP Contributed to Profile</span>
+                        <strong style={{ fontSize: '14px', color: 'var(--cyan, #0284c7)' }}>
+                          +{cyberAnalytics.totalGlobalExpContributed} Global EXP
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                      <Button style={{ flex: 1 }} onClick={() => go('cyber-crime')}>
+                        Launch Cyber Crime Investigation
+                      </Button>
+                      <Button variant="secondary" onClick={() => setActiveTab('badges')}>
+                        View Badges
+                      </Button>
+                    </div>
+                  </GlassCard>
+                </div>
+
+                {/* Historical Attempts Table */}
+                {(cyberProgress.historicalAttempts || []).length > 0 && (
+                  <GlassCard style={{ padding: '22px' }}>
+                    <h4 style={{ margin: '0 0 14px', fontSize: '16px', fontWeight: 800 }}>
+                      Recent Investigation Playthroughs
+                    </h4>
+                    <div className="cyber-history-list">
+                      {cyberProgress.historicalAttempts.slice(0, 6).map((att) => (
+                        <div key={att.attemptId} className="cyber-history-row">
+                          <div className="cyber-history-left">
+                            <span className="cyber-history-id">
+                              {att.attemptId.replace('cca_', 'CASE-').substring(0, 15)}
+                            </span>
+                            <span style={{ fontSize: '13px', color: 'var(--text)' }}>
+                              Completed {att.completedAt ? new Date(att.completedAt).toLocaleDateString() : 'Recently'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                              {att.correctCount}/{att.evaluatedCount} correct ({att.score}/90 pts)
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '13px',
+                                fontWeight: 800,
+                                color: att.accuracy >= 70 ? '#10b981' : '#ef4444',
+                              }}
+                            >
+                              {att.accuracy}% Accuracy
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassCard>
+                )}
+              </div>
+            )}
+
+            {/* SUB-VIEW 3: DEEPFAKE DETECTIVE DETAILED PANEL */}
+            {analyticsGameTab === 'deepfake' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Deepfake KPI Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      ACCURACY
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, color: '#8b5cf6', marginTop: '4px' }}>
+                      {gameStats?.accuracy || 0}%
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      Decisive predictions only
+                    </span>
+                  </GlassCard>
+
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      GAMES PLAYED
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>
+                      {gameStats?.gamesPlayed || 0}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      Completed forensic decks
+                    </span>
+                  </GlassCard>
+
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      IMAGES ANALYSED
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>
+                      {gameStats?.totalAttempts || 0}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      Total verification attempts
+                    </span>
+                  </GlassCard>
+
+                  <GlassCard style={{ padding: '18px 20px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      WINNING STREAK
+                    </span>
+                    <div style={{ fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>
+                      🔥 {gameStats?.currentStreak || 0}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      Highest: {gameStats?.highestStreak || 0} consecutive
+                    </span>
+                  </GlassCard>
+                </div>
+
+                {/* Deepfake Breakdown Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                  <GlassCard style={{ padding: '22px' }}>
+                    <h4 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800 }}>
+                      Prediction Breakdown
+                    </h4>
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Images Tested</span>
+                        <strong style={{ fontSize: '14px' }}>{gameStats?.totalAttempts || 0}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: '#10b981', fontSize: '13px' }}>Correct Predictions</span>
+                        <strong style={{ fontSize: '14px', color: '#10b981' }}>{gameStats?.correctAnswers || 0}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: '#ef4444', fontSize: '13px' }}>Incorrect Predictions</span>
+                        <strong style={{ fontSize: '14px', color: '#ef4444' }}>{gameStats?.incorrectAnswers || 0}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Inconclusive Results</span>
+                        <strong style={{ fontSize: '14px' }}>{gameStats?.inconclusiveAnswers || 0}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Global Leaderboard Rank</span>
+                        <strong style={{ fontSize: '14px', color: '#8b5cf6' }}>
+                          #{gameStats?.leaderboardPosition || '--'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                      <Button style={{ flex: 1 }} onClick={() => go('deepfake-detective')}>
+                        Play Deepfake Detective
+                      </Button>
+                      <Button variant="secondary" onClick={() => go('leaderboard')}>
+                        <Trophy size={16} /> Leaderboard
+                      </Button>
+                    </div>
+                  </GlassCard>
+
+                  <GlassCard style={{ padding: '22px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Forensic Achievements</h4>
+                      <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 700 }}>
+                        {deepfakeUnlockedCount} / 8 Unlocked
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                      {(gameStats?.achievements || []).map((ach) => (
+                        <div
+                          key={ach.id}
+                          title={`${ach.name}: ${ach.description} (${ach.isUnlocked ? 'Unlocked' : 'Locked'})`}
+                          style={{
+                            aspectRatio: '1',
+                            borderRadius: '12px',
+                            background: ach.isUnlocked ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface2, rgba(0,0,0,0.05))',
+                            border: ach.isUnlocked ? '1px solid #8b5cf6' : '1px solid var(--line, #e2e8f0)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontSize: '22px',
+                            opacity: ach.isUnlocked ? 1 : 0.4,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {ach.badge || '🎖️'}
+                        </div>
+                      ))}
+                    </div>
+                  </GlassCard>
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Forensic Breakdown Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-            <GlassCard style={{ padding: '22px' }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800 }}>Analysis Statistics</h3>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
-                  <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Games Played</span>
-                  <strong style={{ fontSize: '14px' }}>{gameStats?.gamesPlayed || 0}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
-                  <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Images Analysed</span>
-                  <strong style={{ fontSize: '14px' }}>{gameStats?.totalAttempts || 0}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
-                  <span style={{ color: '#000000', fontSize: '13px' }}>Correct Predictions</span>
-                  <strong style={{ fontSize: '14px', color: '#000000' }}>{gameStats?.correctAnswers || 0}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
-                  <span style={{ color: '#000000', fontSize: '13px' }}>Incorrect Predictions</span>
-                  <strong style={{ fontSize: '14px', color: '#000000' }}>{gameStats?.incorrectAnswers || 0}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#000000', fontSize: '13px' }}>Inconclusive Results</span>
-                  <strong style={{ fontSize: '14px', color: '#000000' }}>{gameStats?.inconclusiveAnswers || 0}</strong>
-                </div>
+        </div>
+      ) : activeTab === 'badges' ? (
+        /* ========================================================
+           SECTION B: GAME BADGES AND ACHIEVEMENTS
+           ======================================================== */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          {/* Badges Header Card */}
+          <GlassCard style={{ padding: '24px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 4px', fontSize: '20px', fontWeight: 800 }}>
+                  Game Badges & Achievements Catalog
+                </h3>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
+                  Earn specialized credentials by completing challenges, maintaining accuracy, and mastering investigations.
+                </p>
               </div>
-            </GlassCard>
-
-            <GlassCard style={{ padding: '22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Forensic Badges</h3>
-                <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 700 }}>
-                  {gameStats?.totalAchievementsUnlocked || 0} / 8 Unlocked
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  background: 'var(--surface2, rgba(0,0,0,0.05))',
+                  border: '1px solid var(--line, #e2e8f0)',
+                }}
+              >
+                <Award size={20} color="var(--cyan, #0284c7)" />
+                <span style={{ fontSize: '14px', fontWeight: 800 }}>
+                  {cyberUnlockedBadges.length + deepfakeUnlockedCount} / {CYBER_CRIME_BADGES_CATALOG.length + 8} Total Badges Unlocked
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-                {(gameStats?.achievements || []).map((ach) => (
-                  <div
-                    key={ach.id}
-                    title={`${ach.name}: ${ach.description} (${ach.isUnlocked ? 'Unlocked' : 'Locked'})`}
+            </div>
+
+            {/* Game Filter Buttons */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '18px' }}>
+              <button
+                onClick={() => setBadgeFilter('all')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: badgeFilter === 'all' ? '1px solid var(--cyan, #0284c7)' : '1px solid var(--line, #e2e8f0)',
+                  background: badgeFilter === 'all' ? 'var(--cyan, #0284c7)' : 'var(--surface2, #f8fafc)',
+                  color: badgeFilter === 'all' ? '#ffffff' : 'var(--muted)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                All Badges ({CYBER_CRIME_BADGES_CATALOG.length + 8})
+              </button>
+              <button
+                onClick={() => setBadgeFilter('cyber_crime')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: badgeFilter === 'cyber_crime' ? '1px solid var(--cyan, #0284c7)' : '1px solid var(--line, #e2e8f0)',
+                  background: badgeFilter === 'cyber_crime' ? 'var(--cyan, #0284c7)' : 'var(--surface2, #f8fafc)',
+                  color: badgeFilter === 'cyber_crime' ? '#ffffff' : 'var(--muted)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                🛡️ Cyber Crime Investigation ({cyberUnlockedBadges.length}/{CYBER_CRIME_BADGES_CATALOG.length})
+              </button>
+              <button
+                onClick={() => setBadgeFilter('deepfake')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: badgeFilter === 'deepfake' ? '1px solid var(--cyan, #0284c7)' : '1px solid var(--line, #e2e8f0)',
+                  background: badgeFilter === 'deepfake' ? 'var(--cyan, #0284c7)' : 'var(--surface2, #f8fafc)',
+                  color: badgeFilter === 'deepfake' ? '#ffffff' : 'var(--muted)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                🕵️ Deepfake Detective ({deepfakeUnlockedCount}/8)
+              </button>
+            </div>
+
+            {/* Cyber Crime Category Filter (when Cyber Crime or All is selected) */}
+            {(badgeFilter === 'all' || badgeFilter === 'cyber_crime') && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--muted)', alignSelf: 'center', marginRight: '4px' }}>
+                  Cyber Crime Categories:
+                </span>
+                {['All', 'Beginner', 'Accuracy', 'Progression', 'Dedication'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCyberBadgeCategory(cat)}
                     style={{
-                      aspectRatio: '1',
+                      padding: '4px 10px',
                       borderRadius: '12px',
-                      background: ach.isUnlocked ? '#000000' : '#ffffff',
-                      border: '1px solid',
-                      borderColor: '#000000',
-                      display: 'grid',
-                      placeItems: 'center',
-                      fontSize: '22px',
-                      opacity: ach.isUnlocked ? 1 : 0.4,
+                      fontSize: '11px',
+                      fontWeight: 600,
                       cursor: 'pointer',
+                      border: cyberBadgeCategory === cat ? '1px solid var(--text)' : '1px solid var(--line, #e2e8f0)',
+                      background: cyberBadgeCategory === cat ? 'var(--text)' : 'transparent',
+                      color: cyberBadgeCategory === cat ? 'var(--card-bg, #ffffff)' : 'var(--muted)',
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    {ach.badge || '🎖️'}
-                  </div>
+                    {cat}
+                  </button>
                 ))}
               </div>
-            </GlassCard>
+            )}
+          </GlassCard>
+
+          {/* Badges Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+            {/* Cyber Crime Badges */}
+            {(badgeFilter === 'all' || badgeFilter === 'cyber_crime') &&
+              CYBER_CRIME_BADGES_CATALOG.filter(
+                (b) => cyberBadgeCategory === 'All' || b.category === cyberBadgeCategory
+              ).map((badge) => {
+                const isUnlocked = cyberUnlockedIds.has(badge.id);
+                const unlockRecord = cyberUnlockedBadges.find((b) => b.id === badge.id);
+
+                return (
+                  <GlassCard
+                    key={badge.id}
+                    className={`cyber-badge-card ${isUnlocked ? 'unlocked' : 'locked'}`}
+                    style={{
+                      padding: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      border: isUnlocked
+                        ? '1px solid rgba(2, 132, 199, 0.4)'
+                        : '1px solid var(--line, #e2e8f0)',
+                      background: isUnlocked
+                        ? 'var(--card-bg, rgba(255, 255, 255, 0.05))'
+                        : 'var(--surface2, rgba(0, 0, 0, 0.02))',
+                      opacity: isUnlocked ? 1 : 0.65,
+                      boxShadow: isUnlocked ? '0 4px 16px rgba(2, 132, 199, 0.08)' : 'none',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background:
+                              badge.tierColor === 'amber'
+                                ? 'rgba(245, 158, 11, 0.15)'
+                                : badge.tierColor === 'cyan'
+                                ? 'rgba(6, 182, 212, 0.15)'
+                                : badge.tierColor === 'green'
+                                ? 'rgba(16, 185, 129, 0.15)'
+                                : 'rgba(139, 92, 246, 0.15)',
+                            color:
+                              badge.tierColor === 'amber'
+                                ? '#d97706'
+                                : badge.tierColor === 'cyan'
+                                ? '#0284c7'
+                                : badge.tierColor === 'green'
+                                ? '#059669'
+                                : '#7c3aed',
+                          }}
+                        >
+                          {badge.category}
+                        </span>
+
+                        {isUnlocked ? (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: '#059669',
+                            }}
+                          >
+                            <CheckCircle2 size={14} /> Unlocked
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              color: 'var(--muted)',
+                            }}
+                          >
+                            <Lock size={12} /> Locked
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 style={{ margin: '4px 0', fontSize: '15px', fontWeight: 800 }}>
+                        {badge.name}
+                      </h4>
+                      <p style={{ margin: '4px 0', fontSize: '12px', color: 'var(--text-secondary, var(--text))' }}>
+                        {badge.description}
+                      </p>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid var(--line, #e2e8f0)', paddingTop: '10px' }}>
+                      {isUnlocked ? (
+                        <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                          Unlocked {unlockRecord?.unlockedAt ? new Date(unlockRecord.unlockedAt).toLocaleDateString() : 'Earned'}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                          Requirement: Complete game condition to unlock
+                        </span>
+                      )}
+                    </div>
+                  </GlassCard>
+                );
+              })}
+
+            {/* Deepfake Detective Badges */}
+            {(badgeFilter === 'all' || badgeFilter === 'deepfake') &&
+              (gameStats?.achievements || []).map((ach) => (
+                <GlassCard
+                  key={ach.id}
+                  style={{
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    border: ach.isUnlocked
+                      ? '1px solid rgba(139, 92, 246, 0.4)'
+                      : '1px solid var(--line, #e2e8f0)',
+                    background: ach.isUnlocked
+                      ? 'var(--card-bg, rgba(255, 255, 255, 0.05))'
+                      : 'var(--surface2, rgba(0, 0, 0, 0.02))',
+                    opacity: ach.isUnlocked ? 1 : 0.65,
+                    boxShadow: ach.isUnlocked ? '0 4px 16px rgba(139, 92, 246, 0.08)' : 'none',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(139, 92, 246, 0.15)',
+                          color: '#8b5cf6',
+                        }}
+                      >
+                        Deepfake Forensics
+                      </span>
+
+                      {ach.isUnlocked ? (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            color: '#059669',
+                          }}
+                        >
+                          <CheckCircle2 size={14} /> Unlocked
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: 'var(--muted)',
+                          }}
+                        >
+                          <Lock size={12} /> Locked
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '26px' }}>{ach.badge || '🎖️'}</span>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>
+                          {ach.name}
+                        </h4>
+                        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-secondary, var(--text))' }}>
+                          {ach.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--line, #e2e8f0)', paddingTop: '10px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      {ach.isUnlocked ? 'Achievement unlocked' : 'Requirement: Decisive forensic predictions'}
+                    </span>
+                  </div>
+                </GlassCard>
+              ))}
           </div>
         </div>
       ) : (

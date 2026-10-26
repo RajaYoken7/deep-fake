@@ -6,6 +6,7 @@ import { Modules } from './pages/Modules';
 import { Detection, Games, Identity } from './pages/UserPages';
 import { AdminArea, HistoryPage, ProfilePage } from './pages/EmptyPages';
 import { DeepfakeDetectiveGame } from './features/game/DeepfakeDetectiveGame';
+import { CyberCrimeInvestigationGame } from './features/game/cyberCrime/CyberCrimeInvestigationGame';
 import { LeaderboardPage } from './features/game/LeaderboardPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -20,6 +21,7 @@ function AppContent() {
     'identity',
     'games',
     'deepfake-detective',
+    'cyber-crime-investigation',
     'leaderboard',
     'history',
     'profile',
@@ -90,6 +92,7 @@ function AppContent() {
     'identity',
     'games',
     'deepfake-detective',
+    'cyber-crime-investigation',
     'leaderboard',
     'history',
     'profile',
@@ -193,6 +196,7 @@ function AppContent() {
       identity: <Identity notify={notify} go={go} back={back} />,
       games: <Games go={go} back={back} />,
       'deepfake-detective': <DeepfakeDetectiveGame go={go} back={back} notify={notify} />,
+      'cyber-crime-investigation': <CyberCrimeInvestigationGame go={go} back={back} notify={notify} />,
       leaderboard: <LeaderboardPage go={go} back={back} notify={notify} />,
       history: <HistoryPage go={go} back={back} />,
       profile: <ProfilePage go={go} back={back} notify={notify} />,

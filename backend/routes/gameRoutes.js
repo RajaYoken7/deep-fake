@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { authenticateToken } from '../middleware/authenticateToken.js';
+import { authenticateToken, optionalAuthenticateToken } from '../middleware/authenticateToken.js';
 import { upload, validateImageContent } from '../middleware/uploadMiddleware.js';
 import {
   startGameSession,
@@ -12,6 +12,7 @@ import {
   getMyRanking,
   getAchievements,
   getChallenges,
+  recordCyberCrimeReward,
 } from '../controllers/gameController.js';
 
 const gameRouter = Router();
@@ -49,7 +50,10 @@ const optionalValidateImage = (req, res, next) => {
   next();
 };
 
-// All game endpoints require valid authentication
+// Public / authenticated global leaderboard
+gameRouter.get('/leaderboard', optionalAuthenticateToken, getLeaderboard);
+
+// Game progression, attempts, and rewards require valid authentication
 gameRouter.use(authenticateToken);
 
 gameRouter.post('/start', startGameSession);
@@ -64,9 +68,9 @@ gameRouter.post(
 gameRouter.post('/complete', completeSession);
 gameRouter.get('/stats', getGameStats);
 gameRouter.get('/history', getGameHistory);
-gameRouter.get('/leaderboard', getLeaderboard);
 gameRouter.get('/leaderboard/me', getMyRanking);
 gameRouter.get('/achievements', getAchievements);
 gameRouter.get('/challenges', getChallenges);
+gameRouter.post('/cyber-crime/reward', recordCyberCrimeReward);
 
 export default gameRouter;

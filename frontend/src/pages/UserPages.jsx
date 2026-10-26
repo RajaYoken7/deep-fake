@@ -292,6 +292,10 @@ export function Games({ go, back }) {
                 <Button className="full-btn" onClick={() => go('deepfake-detective')}>
                   Play Detective <Gamepad2 size={16} />
                 </Button>
+              ) : title === 'Cyber Crime Investigation' ? (
+                <Button className="full-btn" onClick={() => go('cyber-crime-investigation')}>
+                  Investigate Case <Gamepad2 size={16} />
+                </Button>
               ) : (
                 <Button variant="disabled" className="full-btn">
                   Coming Soon <Gamepad2 size={16} />

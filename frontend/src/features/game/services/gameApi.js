@@ -115,3 +115,28 @@ export async function getChallenges() {
   });
   return response?.data;
 }
+
+/**
+ * Claims authoritative EXP reward from Cyber Crime Investigation.
+ * Synchronizes with user's global profile balance and updates levels/achievements.
+ */
+export async function claimCyberCrimeReward({
+  rewardType, // 'campaign' | 'mission'
+  attemptId = null,
+  correctCount = 0,
+  missionId = null,
+  dateKey = null,
+}) {
+  const response = await apiRequest('/api/game/cyber-crime/reward', {
+    method: 'POST',
+    body: JSON.stringify({
+      rewardType,
+      attemptId,
+      correctCount,
+      missionId,
+      dateKey,
+    }),
+  });
+  return response?.data || response;
+}
+

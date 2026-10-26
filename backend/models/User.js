@@ -116,6 +116,10 @@ const userSchema = new mongoose.Schema(
         icon: { type: String },
       },
     ],
+    cyberCrimeRewards: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -173,6 +177,7 @@ userSchema.methods.toSafeObject = function () {
     currentStreak: this.currentStreak || 0,
     highestStreak: this.highestStreak || 0,
     achievements: this.achievements || [],
+    cyberCrimeRewards: this.cyberCrimeRewards || [],
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

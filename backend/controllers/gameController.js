@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { GameSession } from '../models/GameSession.js';
 import { GameAttempt } from '../models/GameAttempt.js';
+import { User } from '../models/User.js';
 import {
   processGameSubmission,
   completeGameSession,
   getLeaderboardData,
   getUserGameStats,
   getCuratedChallenges,
+  calculateLevel,
+  calculateRank,
+  checkAndAwardAchievements,
 } from '../services/gameService.js';
 import { cleanupFiles } from '../middleware/uploadMiddleware.js';
 
@@ -262,3 +266,175 @@ export async function getChallenges(_req, res, next) {
     return next(error);
   }
 }
+
+/**
+ * POST /api/game/cyber-crime/reward
+ * Authoritatively awards EXP from Cyber Crime Investigation into the shared Global Profile.
+ * Supports round completion, full campaign playthrough, and daily mission completion with strict idempotency.
+ * Persists GameAttempt documents so weekly and monthly leaderboard aggregations reflect all earned EXP.
+ */
+export async function recordCyberCrimeReward(req, res, next) {
+  try {
+    const userId = req.user._id;
+    const { rewardType, attemptId, roundId, correctCount, missionId, dateKey } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+      });
+    }
+
+    if (!Array.isArray(user.cyberCrimeRewards)) {
+      user.cyberCrimeRewards = [];
+    }
+
+    let idempotencyKey = '';
+    let xpToAward = 0;
+    let attemptDescription = '';
+    let questionsInUnit = 0;
+    let correctInUnit = 0;
+
+    if (rewardType === 'round') {
+      if (!attemptId || !roundId) {
+        return res.status(400).json({
+          success: false,
+          message: 'attemptId and roundId are required for round reward.',
+        });
+      }
+      idempotencyKey = `cyber_round_${attemptId}_${roundId}`;
+      correctInUnit = Math.max(0, Math.min(3, Number(correctCount) || 0));
+      questionsInUnit = 3;
+      xpToAward = correctInUnit * 10;
+      attemptDescription = `Cyber Crime Investigation Round Completed (${roundId}: ${correctInUnit}/3 correct)`;
+    } else if (rewardType === 'campaign') {
+      if (!attemptId) {
+        return res.status(400).json({
+          success: false,
+          message: 'attemptId is required for campaign reward.',
+        });
+      }
+      idempotencyKey = `cyber_campaign_${attemptId}`;
+      const totalCorrect = Math.max(0, Math.min(9, Number(correctCount) || 0));
+
+      // Calculate if round rewards were already claimed for this attempt
+      const roundRewardsClaimed = user.cyberCrimeRewards.filter((k) =>
+        k.startsWith(`cyber_round_${attemptId}_`)
+      ).length;
+
+      if (roundRewardsClaimed > 0) {
+        xpToAward = 25; // Campaign Mastery Bonus
+        correctInUnit = 0;
+        questionsInUnit = 0;
+      } else {
+        xpToAward = totalCorrect * 10;
+        correctInUnit = totalCorrect;
+        questionsInUnit = 9;
+      }
+
+      user.gamesPlayed = (user.gamesPlayed || 0) + 1;
+      attemptDescription = `Cyber Crime Campaign Case Closed (${totalCorrect}/9 correct)`;
+    } else if (rewardType === 'mission') {
+      if (!missionId || !dateKey) {
+        return res.status(400).json({
+          success: false,
+          message: 'missionId and dateKey are required for mission reward.',
+        });
+      }
+      idempotencyKey = `cyber_mission_${dateKey}_${missionId}`;
+      const validMissionRewards = {
+        'dm-phish-spotter': 25,
+        'dm-identity-verifier': 30,
+        'dm-tx-investigator': 35,
+        'dm-safe-action': 25,
+        'dm-phish-audit': 25,
+        'dm-exec-verify': 30,
+        'dm-bank-freeze': 35,
+        'dm-url-triage': 25,
+        'dm-qr-quishing': 30,
+        'dm-invoice-tamper': 35,
+      };
+      xpToAward = validMissionRewards[missionId] || 25;
+      correctInUnit = 1;
+      questionsInUnit = 1;
+      attemptDescription = `Cyber Crime Daily Mission Completed (${missionId})`;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid rewardType. Expected "round", "campaign", or "mission".',
+      });
+    }
+
+    // Check idempotency: if already claimed, return safely without double-awarding
+    if (user.cyberCrimeRewards.includes(idempotencyKey)) {
+      const safeUser = user.toSafeObject();
+      return res.status(200).json({
+        success: true,
+        alreadyClaimed: true,
+        xpAwarded: 0,
+        user: safeUser,
+        data: {
+          user: safeUser,
+          alreadyClaimed: true,
+          xpAwarded: 0,
+        },
+        message: 'Reward has already been recorded for this event.',
+      });
+    }
+
+    // Award XP and record idempotency key
+    user.cyberCrimeRewards.push(idempotencyKey);
+    user.totalXP = (user.totalXP || 0) + xpToAward;
+
+    if (questionsInUnit > 0) {
+      user.totalAttempts = (user.totalAttempts || 0) + questionsInUnit;
+      user.correctAnswers = (user.correctAnswers || 0) + correctInUnit;
+      user.incorrectAnswers = (user.incorrectAnswers || 0) + (questionsInUnit - correctInUnit);
+    }
+
+    const levelInfo = calculateLevel(user.totalXP);
+    user.currentLevel = levelInfo.level;
+    user.currentRank = calculateRank(user.totalXP);
+
+    const newlyUnlockedAchievements = checkAndAwardAchievements(user);
+
+    // Save GameAttempt so Weekly and Monthly leaderboards aggregate this EXP
+    if (xpToAward > 0) {
+      await GameAttempt.create({
+        userId: user._id,
+        sessionId: attemptId || `cyber_${dateKey || Date.now()}`,
+        imageReference: idempotencyKey,
+        userPrediction: 'REAL',
+        aiClassification: 'NOT_AI_GENERATED',
+        isCorrect: true,
+        xpAwarded: xpToAward,
+        streakAtAttempt: user.currentStreak || 0,
+        explanation: attemptDescription,
+        status: 'success',
+        createdAt: new Date(),
+      });
+    }
+
+    await user.save();
+
+    const safeUser = user.toSafeObject();
+    return res.status(200).json({
+      success: true,
+      alreadyClaimed: false,
+      xpAwarded: xpToAward,
+      user: safeUser,
+      data: {
+        user: safeUser,
+        xpAwarded: xpToAward,
+        alreadyClaimed: false,
+        newlyUnlockedAchievements,
+      },
+      newlyUnlockedAchievements,
+      message: `Successfully awarded ${xpToAward} EXP to shared global profile.`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+

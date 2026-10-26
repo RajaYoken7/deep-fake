@@ -357,6 +357,22 @@ export async function completeGameSession({ userId, sessionId }) {
     session.sessionBonusAwarded = true;
     session.xpEarned = (session.xpEarned || 0) + completionBonus;
     user.totalXP = (user.totalXP || 0) + completionBonus;
+
+    // Persist GameAttempt so weekly and monthly leaderboard aggregations include the completion bonus
+    const bonusAttempt = new GameAttempt({
+      userId: user._id,
+      sessionId: session.sessionId,
+      imageReference: 'session_completion_bonus',
+      userPrediction: 'REAL',
+      aiClassification: 'NOT_AI_GENERATED',
+      isCorrect: true,
+      xpAwarded: completionBonus,
+      streakAtAttempt: user.currentStreak || 0,
+      explanation: 'Deepfake Detective Session Completion Bonus',
+      status: 'success',
+      createdAt: new Date(),
+    });
+    await bonusAttempt.save();
   }
 
   session.status = 'completed';
@@ -468,9 +484,28 @@ export async function getLeaderboardData({ filter = 'all_time', limit = 100, cur
     });
 
     const topPlayers = allRanked.slice(0, topLimit);
-    const currentUserRanking = currentUserId
+    let currentUserRanking = currentUserId
       ? allRanked.find((p) => p.userId === currentUserId.toString()) || null
       : null;
+
+    if (!currentUserRanking && currentUserId) {
+      const u = await User.findById(currentUserId).lean();
+      if (u) {
+        currentUserRanking = {
+          rank: allRanked.length + 1,
+          userId: u._id.toString(),
+          name: u.name,
+          username: u.username || u.email.split('@')[0],
+          profilePicture: u.profilePicture || '',
+          currentRank: u.currentRank || calculateRank(u.totalXP || 0),
+          level: u.currentLevel || calculateLevel(u.totalXP || 0).level,
+          xp: 0,
+          accuracy: 0,
+          gamesPlayed: u.gamesPlayed || 0,
+          isCurrentUser: true,
+        };
+      }
+    }
 
     return {
       filter,
@@ -513,9 +548,28 @@ export async function getLeaderboardData({ filter = 'all_time', limit = 100, cur
   });
 
   const topPlayers = allRanked.slice(0, topLimit);
-  const currentUserRanking = currentUserId
+  let currentUserRanking = currentUserId
     ? allRanked.find((p) => p.userId === currentUserId.toString()) || null
     : null;
+
+  if (!currentUserRanking && currentUserId) {
+    const u = await User.findById(currentUserId).lean();
+    if (u) {
+      currentUserRanking = {
+        rank: allRanked.length + 1,
+        userId: u._id.toString(),
+        name: u.name,
+        username: u.username || u.email.split('@')[0],
+        profilePicture: u.profilePicture || '',
+        currentRank: u.currentRank || calculateRank(u.totalXP || 0),
+        level: u.currentLevel || calculateLevel(u.totalXP || 0).level,
+        xp: u.totalXP || 0,
+        accuracy: 0,
+        gamesPlayed: u.gamesPlayed || 0,
+        isCurrentUser: true,
+      };
+    }
+  }
 
   return {
     filter: 'all_time',
