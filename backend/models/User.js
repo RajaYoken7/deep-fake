@@ -65,6 +65,57 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Deepfake Detective Game Progression Fields
+    totalXP: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    currentLevel: {
+      type: Number,
+      default: 1,
+    },
+    currentRank: {
+      type: String,
+      default: 'Bronze Detective',
+    },
+    gamesPlayed: {
+      type: Number,
+      default: 0,
+    },
+    totalAttempts: {
+      type: Number,
+      default: 0,
+    },
+    correctAnswers: {
+      type: Number,
+      default: 0,
+    },
+    incorrectAnswers: {
+      type: Number,
+      default: 0,
+    },
+    inconclusiveAnswers: {
+      type: Number,
+      default: 0,
+    },
+    currentStreak: {
+      type: Number,
+      default: 0,
+    },
+    highestStreak: {
+      type: Number,
+      default: 0,
+    },
+    achievements: [
+      {
+        id: { type: String, required: true },
+        unlockedAt: { type: Date, default: Date.now },
+        name: { type: String },
+        description: { type: String },
+        icon: { type: String },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -111,6 +162,17 @@ userSchema.methods.toSafeObject = function () {
     isActive: this.isActive,
     isEmailVerified: this.isEmailVerified,
     lastLogin: this.lastLogin,
+    totalXP: this.totalXP || 0,
+    currentLevel: this.currentLevel || 1,
+    currentRank: this.currentRank || 'Bronze Detective',
+    gamesPlayed: this.gamesPlayed || 0,
+    totalAttempts: this.totalAttempts || 0,
+    correctAnswers: this.correctAnswers || 0,
+    incorrectAnswers: this.incorrectAnswers || 0,
+    inconclusiveAnswers: this.inconclusiveAnswers || 0,
+    currentStreak: this.currentStreak || 0,
+    highestStreak: this.highestStreak || 0,
+    achievements: this.achievements || [],
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

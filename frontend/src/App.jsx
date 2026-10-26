@@ -5,13 +5,35 @@ import { AuthPage } from './pages/Auth';
 import { Modules } from './pages/Modules';
 import { Detection, Games, Identity } from './pages/UserPages';
 import { AdminArea, HistoryPage, ProfilePage } from './pages/EmptyPages';
+import { DeepfakeDetectiveGame } from './features/game/DeepfakeDetectiveGame';
+import { LeaderboardPage } from './features/game/LeaderboardPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ShieldCheck } from 'lucide-react';
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const validPages = [
+    'landing',
+    'modules',
+    'detection',
+    'identity',
+    'games',
+    'deepfake-detective',
+    'leaderboard',
+    'history',
+    'profile',
+    'admin-dashboard',
+    'login',
+    'register',
+    'admin-login',
+  ];
+
   const [page, setPage] = useState(() => {
+    const pathSlug = window.location.pathname.replace(/^\/+|\/+$/g, '');
+    if (pathSlug && validPages.includes(pathSlug)) {
+      return pathSlug;
+    }
     return sessionStorage.getItem('deeptrust_active_page') || 'landing';
   });
   const [history, setHistory] = useState([]);
@@ -26,6 +48,11 @@ function AppContent() {
     setHistory((items) => [...items, page]);
     setPage(to);
     sessionStorage.setItem('deeptrust_active_page', to);
+    try {
+      window.history.pushState({}, '', `/${to === 'landing' ? '' : to}`);
+    } catch {
+      // browser fallback
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -35,13 +62,39 @@ function AppContent() {
       const target = previous || 'landing';
       setPage(target);
       sessionStorage.setItem('deeptrust_active_page', target);
+      try {
+        window.history.pushState({}, '', `/${target === 'landing' ? '' : target}`);
+      } catch {
+        // browser fallback
+      }
       return items.slice(0, -1);
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathSlug = window.location.pathname.replace(/^\/+|\/+$/g, '');
+      const target = pathSlug && validPages.includes(pathSlug) ? pathSlug : 'landing';
+      setPage(target);
+      sessionStorage.setItem('deeptrust_active_page', target);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Route protection enforcement
-  const protectedPages = ['modules', 'detection', 'identity', 'games', 'history', 'profile', 'admin-dashboard'];
+  const protectedPages = [
+    'modules',
+    'detection',
+    'identity',
+    'games',
+    'deepfake-detective',
+    'leaderboard',
+    'history',
+    'profile',
+    'admin-dashboard',
+  ];
   const adminPages = ['admin-dashboard'];
 
   useEffect(() => {
@@ -139,6 +192,8 @@ function AppContent() {
       detection: <Detection notify={notify} go={go} back={back} />,
       identity: <Identity notify={notify} go={go} back={back} />,
       games: <Games go={go} back={back} />,
+      'deepfake-detective': <DeepfakeDetectiveGame go={go} back={back} notify={notify} />,
+      leaderboard: <LeaderboardPage go={go} back={back} notify={notify} />,
       history: <HistoryPage go={go} back={back} />,
       profile: <ProfilePage go={go} back={back} notify={notify} />,
       'admin-dashboard': <AdminArea go={go} back={back} notify={notify} />,

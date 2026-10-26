@@ -178,9 +178,10 @@ export async function getUserStats(req, res, next) {
   try {
     const userId = req.user._id;
 
-    const [detectionCount, identityCount] = await Promise.all([
+    const [detectionCount, identityCount, userDoc] = await Promise.all([
       DetectionHistory.countDocuments({ userId }),
       IdentityReport.countDocuments({ userId }),
+      User.findById(userId).select('gamesPlayed totalXP currentLevel currentRank').lean(),
     ]);
 
     return res.status(200).json({
@@ -189,7 +190,10 @@ export async function getUserStats(req, res, next) {
         detections: detectionCount,
         identityChecks: identityCount,
         missions: 0,
-        games: 0,
+        games: userDoc?.gamesPlayed || 0,
+        totalXP: userDoc?.totalXP || 0,
+        currentLevel: userDoc?.currentLevel || 1,
+        currentRank: userDoc?.currentRank || 'Bronze Detective',
       },
     });
   } catch (error) {

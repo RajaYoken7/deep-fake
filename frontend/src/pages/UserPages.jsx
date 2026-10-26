@@ -182,5 +182,126 @@ export function Identity({ notify, go, back }) {
 }
 function ReadyCard({icon:Icon,title,copy,items}){return <div className="analysis-aside"><GlassCard><span className="aside-icon"><Icon/></span><h3>{title}</h3><p>{copy}</p><div className="checks">{items.map(x=><span key={x}><CheckCircle2/> {x}</span>)}</div></GlassCard></div>}
 
-export function Games({go,back}){const games=[['DeepFake Detective','Find the fake image and build your deepfake awareness skills.',ScanSearch,'cyan'],['Cyber Crime Investigation','Investigate a digital case and identify suspicious evidence.',Fingerprint,'purple'],['Deepfake Escape Room','Solve deepfake-related puzzles and complete the challenge.',LockKeyhole,'blue']];const missions=[['Spot the Fake','Practice noticing image details that may signal manipulation.',ScanSearch],['Identity Check','Learn the steps of a safe identity comparison.',Fingerprint],['Digital Investigation','Explore how to assess a suspicious image carefully.',ShieldCheck]];return <PublicPage go={go} back={back}><SectionHead eyebrow="LEARN BY PLAYING" title="Game Center" copy="Learn about deepfakes and digital safety through interactive games."/><section className="mission-center"><div className="mission-heading"><span className="eyebrow">MISSION CENTER</span><h2>Choose your next challenge</h2><p>Short guided activities are being prepared for the platform.</p></div><div className="mission-grid">{missions.map(([title,copy,Icon])=><GlassCard className="mission-card" key={title}><span className="mission-icon"><Icon/></span><div><span className="mission-status">COMING SOON</span><h3>{title}</h3><p>{copy}</p></div><Button variant="disabled">Start Mission <ArrowRight size={15}/></Button></GlassCard>)}</div></section><div className="games-divider"><span>GAMES</span><h2>Interactive learning games</h2></div><div className="game-grid">{games.map(([title,copy,Icon,color])=><GlassCard className={`game-card ${color}`} key={title}><div className="game-visual"><Icon/><span>DEEPTRUST<br/>ARCADE</span><i/></div><div className="game-body"><h3>{title}</h3><p>{copy}</p><Button variant="disabled" className="full-btn">Coming Soon <Gamepad2 size={16}/></Button></div></GlassCard>)}</div></PublicPage>}
+export function Games({ go, back }) {
+  const games = [
+    ['DeepFake Detective', 'Find the fake image, test your intuition, and build your deepfake awareness skills.', ScanSearch, 'cyan'],
+    ['Cyber Crime Investigation', 'Investigate a digital case and identify suspicious evidence.', Fingerprint, 'purple'],
+    ['Deepfake Escape Room', 'Solve deepfake-related puzzles and complete the challenge.', LockKeyhole, 'blue'],
+  ];
+  const missions = [
+    ['Spot the Fake', 'Practice noticing image details that may signal manipulation.', ScanSearch],
+    ['Identity Check', 'Learn the steps of a safe identity comparison.', Fingerprint],
+    ['Digital Investigation', 'Explore how to assess a suspicious image carefully.', ShieldCheck],
+  ];
+
+  return (
+    <PublicPage go={go} back={back}>
+      <SectionHead
+        eyebrow="LEARN BY PLAYING"
+        title="Game Center"
+        copy="Learn about deepfakes and digital safety through interactive games."
+      />
+
+      {/* Global Leaderboard Callout */}
+      <GlassCard
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '14px',
+          padding: '18px 24px',
+          marginBottom: '28px',
+          border: '1px solid #bae6fd',
+          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.06), rgba(99, 102, 241, 0.06))',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div
+            style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '12px',
+              background: '#e0f2fe',
+              color: '#0284c7',
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: '22px',
+            }}
+          >
+            🏆
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Global Detective Leaderboard</h3>
+            <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '12px' }}>
+              Compete with detectives worldwide, earn XP, and climb the ranks.
+            </p>
+          </div>
+        </div>
+        <Button variant="secondary" onClick={() => go('leaderboard')}>
+          View Global Leaderboard <ArrowRight size={14} />
+        </Button>
+      </GlassCard>
+
+      <section className="mission-center">
+        <div className="mission-heading">
+          <span className="eyebrow">MISSION CENTER</span>
+          <h2>Choose your next challenge</h2>
+          <p>Short guided activities are being prepared for the platform.</p>
+        </div>
+        <div className="mission-grid">
+          {missions.map(([title, copy, Icon]) => (
+            <GlassCard className="mission-card" key={title}>
+              <span className="mission-icon">
+                <Icon />
+              </span>
+              <div>
+                <span className="mission-status">COMING SOON</span>
+                <h3>{title}</h3>
+                <p>{copy}</p>
+              </div>
+              <Button variant="disabled">
+                Start Mission <ArrowRight size={15} />
+              </Button>
+            </GlassCard>
+          ))}
+        </div>
+      </section>
+
+      <div className="games-divider">
+        <span>GAMES</span>
+        <h2>Interactive learning games</h2>
+      </div>
+
+      <div className="game-grid">
+        {games.map(([title, copy, Icon, color]) => (
+          <GlassCard className={`game-card ${color}`} key={title}>
+            <div className="game-visual">
+              <Icon />
+              <span>
+                DEEPTRUST
+                <br />
+                ARCADE
+              </span>
+              <i />
+            </div>
+            <div className="game-body">
+              <h3>{title}</h3>
+              <p>{copy}</p>
+              {title === 'DeepFake Detective' ? (
+                <Button className="full-btn" onClick={() => go('deepfake-detective')}>
+                  Play Detective <Gamepad2 size={16} />
+                </Button>
+              ) : (
+                <Button variant="disabled" className="full-btn">
+                  Coming Soon <Gamepad2 size={16} />
+                </Button>
+              )}
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+    </PublicPage>
+  );
+}
 function PublicPage({children,go,back}){return <div className="modules-page module-detail"><PublicNav go={go}/><main><BackButton back={back}/>{children}</main></div>}

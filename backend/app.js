@@ -8,6 +8,7 @@ import identityGuardianRoutes from './routes/identityGuardianRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import gameRoutes from './routes/gameRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import rateLimiter from './middleware/rateLimiter.js';
 import noSqlSanitizer from './middleware/noSqlSanitizer.js';
@@ -147,6 +148,7 @@ export function createApp(options = {}) {
   app.use('/api/admin', adminRoutes);
   app.use('/api/detection', createDetectionRouter(options));
   app.use('/api/identity-guardian', identityGuardianRoutes);
+  app.use('/api/game', gameRoutes);
 
   // Global error handler
   app.use(errorHandler);

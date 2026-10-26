@@ -30,10 +30,16 @@ import {
   AlertCircle,
   Eye,
   LogOut,
+  Trophy,
+  Award,
+  Flame,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { Button, GlassCard, SectionHead } from '../components/UI';
 import { BackButton, PublicNav } from './Modules';
 import { useAuth } from '../contexts/AuthContext';
+import { getUserGameStats } from '../features/game/services/gameApi';
 import {
   updateUserProfile,
   changeUserPassword,
@@ -586,10 +592,11 @@ export function HistoryPage({ go, back, notify }) {
 export function ProfilePage({ go, back, notify }) {
   const { user, updateUser, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'sessions'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'game' | 'sessions'
   const [editing, setEditing] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [stats, setStats] = useState({ detections: 0, identityChecks: 0, missions: 0, games: 0 });
+  const [gameStats, setGameStats] = useState(null);
 
   // Sessions state
   const [sessions, setSessions] = useState([]);
@@ -625,7 +632,16 @@ export function ProfilePage({ go, back, notify }) {
         // Fallback
       }
     }
+    async function loadGameStatsData() {
+      try {
+        const gData = await getUserGameStats();
+        setGameStats(gData);
+      } catch {
+        // Fallback
+      }
+    }
     loadStats();
+    loadGameStatsData();
   }, [user]);
 
   // Load sessions when switching to sessions tab
@@ -791,6 +807,12 @@ export function ProfilePage({ go, back, notify }) {
           <UserRound size={16} /> Profile Overview
         </Button>
         <Button
+          variant={activeTab === 'game' ? 'primary' : 'secondary'}
+          onClick={() => setActiveTab('game')}
+        >
+          <Gamepad2 size={16} /> Game Statistics
+        </Button>
+        <Button
           variant={activeTab === 'sessions' ? 'primary' : 'secondary'}
           onClick={() => setActiveTab('sessions')}
         >
@@ -868,6 +890,30 @@ export function ProfilePage({ go, back, notify }) {
                 </Button>
               </div>
             </GlassCard>
+            <GlassCard className="profile-content-card">
+              <span className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                <Gamepad2 />
+              </span>
+              <h3>Deepfake Detective</h3>
+              <p>
+                {gameStats?.currentRank || 'Bronze Detective'} · Level {gameStats?.currentLevel || 1}
+              </p>
+              <div className="profile-empty-details" style={{ margin: '12px 0' }}>
+                <span>
+                  Total XP<b>{(gameStats?.totalXP || 0).toLocaleString()} XP</b>
+                </span>
+                <span>
+                  Accuracy<b>{gameStats?.accuracy || 0}%</b>
+                </span>
+                <span>
+                  Winning Streak<b>🔥 {gameStats?.currentStreak || 0}</b>
+                </span>
+              </div>
+              <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <Button onClick={() => go('deepfake-detective')}>Play Detective</Button>
+                <Button variant="secondary" onClick={() => setActiveTab('game')}>Game Stats</Button>
+              </div>
+            </GlassCard>
           </div>
 
           <GlassCard className="account-info-card" style={{ marginTop: '20px' }}>
@@ -886,6 +932,166 @@ export function ProfilePage({ go, back, notify }) {
             </span>
           </GlassCard>
         </>
+      ) : activeTab === 'game' ? (
+        /* Section 7: Deepfake Detective Game Statistics Dashboard */
+        <div>
+          <GlassCard style={{ padding: '24px 28px', marginBottom: '22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                <div
+                  style={{
+                    width: '68px',
+                    height: '68px',
+                    borderRadius: '18px',
+                    background: 'linear-gradient(135deg, #0284c7, #6366f1)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: '34px',
+                    boxShadow: '0 8px 20px rgba(2, 132, 199, 0.25)',
+                  }}
+                >
+                  {gameStats?.levelInfo?.badge || '🕵️'}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{gameStats?.currentRank || 'Bronze Detective'}</h2>
+                    <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: '#e0f2fe', color: '#0369a1', fontWeight: 800 }}>
+                      LEVEL {gameStats?.currentLevel || 1}
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                    Title: <strong>{gameStats?.levelInfo?.title || 'Beginner'}</strong> · {(gameStats?.totalXP || 0).toLocaleString()} Total XP
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <Button onClick={() => go('deepfake-detective')}>
+                  <Gamepad2 size={16} /> Play Detective
+                </Button>
+                <Button variant="secondary" onClick={() => go('leaderboard')}>
+                  <Trophy size={16} /> Leaderboard
+                </Button>
+              </div>
+            </div>
+
+            {/* Level Progress */}
+            <div style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
+                <span style={{ color: 'var(--cyan)' }}>Level Progress ({gameStats?.levelInfo?.progressPercent || 0}%)</span>
+                <span style={{ color: 'var(--muted)' }}>
+                  {gameStats?.levelInfo?.xpNeededForNext > 0
+                    ? `${gameStats.levelInfo.xpNeededForNext.toLocaleString()} XP to Level ${(gameStats?.currentLevel || 1) + 1}`
+                    : 'DeepTrust Legend (Max Level)'}
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: '#e2e8f0', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${gameStats?.levelInfo?.progressPercent || 0}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #0284c7, #818cf8)',
+                    borderRadius: '4px',
+                  }}
+                />
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Metric Cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '22px' }}>
+            <GlassCard style={{ padding: '18px 20px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>TOTAL XP</span>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#0284c7', marginTop: '4px' }}>
+                {(gameStats?.totalXP || 0).toLocaleString()} XP
+              </div>
+            </GlassCard>
+
+            <GlassCard style={{ padding: '18px 20px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>ACCURACY</span>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: (gameStats?.accuracy || 0) >= 70 ? '#16a34a' : '#d97706', marginTop: '4px' }}>
+                {gameStats?.accuracy || 0}%
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Decisive predictions only</span>
+            </GlassCard>
+
+            <GlassCard style={{ padding: '18px 20px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>GLOBAL LEADERBOARD</span>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#9333ea', marginTop: '4px' }}>
+                #{gameStats?.leaderboardPosition || '--'}
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Global ranking</span>
+            </GlassCard>
+
+            <GlassCard style={{ padding: '18px 20px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>WINNING STREAK</span>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#d97706', marginTop: '4px' }}>
+                🔥 {gameStats?.currentStreak || 0}
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Highest: {gameStats?.highestStreak || 0} consecutive</span>
+            </GlassCard>
+          </div>
+
+          {/* Forensic Breakdown Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+            <GlassCard style={{ padding: '22px' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800 }}>Analysis Statistics</h3>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Games Played</span>
+                  <strong style={{ fontSize: '14px' }}>{gameStats?.gamesPlayed || 0}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Images Analysed</span>
+                  <strong style={{ fontSize: '14px' }}>{gameStats?.totalAttempts || 0}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#16a34a', fontSize: '13px' }}>Correct Predictions</span>
+                  <strong style={{ fontSize: '14px', color: '#16a34a' }}>{gameStats?.correctAnswers || 0}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#dc2626', fontSize: '13px' }}>Incorrect Predictions</span>
+                  <strong style={{ fontSize: '14px', color: '#dc2626' }}>{gameStats?.incorrectAnswers || 0}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#d97706', fontSize: '13px' }}>Inconclusive Results</span>
+                  <strong style={{ fontSize: '14px', color: '#d97706' }}>{gameStats?.inconclusiveAnswers || 0}</strong>
+                </div>
+              </div>
+            </GlassCard>
+
+            <GlassCard style={{ padding: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Forensic Badges</h3>
+                <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 700 }}>
+                  {gameStats?.totalAchievementsUnlocked || 0} / 8 Unlocked
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                {(gameStats?.achievements || []).map((ach) => (
+                  <div
+                    key={ach.id}
+                    title={`${ach.name}: ${ach.description} (${ach.isUnlocked ? 'Unlocked' : 'Locked'})`}
+                    style={{
+                      aspectRatio: '1',
+                      borderRadius: '12px',
+                      background: ach.isUnlocked ? '#fef3c7' : '#f1f5f9',
+                      border: '1px solid',
+                      borderColor: ach.isUnlocked ? '#fde68a' : '#e2e8f0',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontSize: '22px',
+                      opacity: ach.isUnlocked ? 1 : 0.4,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {ach.badge || '🎖️'}
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          </div>
+        </div>
       ) : (
         /* Feature A: Security & Session Dashboard */
         <div>
