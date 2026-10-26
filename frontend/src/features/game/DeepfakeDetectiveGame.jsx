@@ -219,17 +219,17 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                     </span>
                   </div>
 
-                  <p style={{ margin: '0 0 10px', color: 'var(--muted, #64748b)', fontSize: '13px' }}>
+                  <p style={{ margin: '0 0 10px', color: '#000000', fontSize: '13px' }}>
                     Title: <strong>{playerStats?.levelInfo?.title || 'Beginner'}</strong> · Can You Tell What's Real?
                   </p>
 
                   {/* Level Progress */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600 }}>
-                      <span style={{ color: 'var(--cyan, #0284c7)' }}>
+                      <span style={{ color: '#000000' }}>
                         {(playerStats?.totalXP || 0).toLocaleString()} Total XP
                       </span>
-                      <span style={{ color: 'var(--muted, #64748b)' }}>
+                      <span style={{ color: '#000000' }}>
                         {playerStats?.levelInfo?.xpNeededForNext > 0
                           ? `${playerStats.levelInfo.xpNeededForNext.toLocaleString()} XP to Level ${(playerStats?.currentLevel || 1) + 1}`
                           : 'Max Level Reached'}
@@ -310,7 +310,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
 
               {/* Game Modes Selection */}
               <div style={{ margin: '30px 0 16px' }}>
-                <span className="eyebrow" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--cyan, #0284c7)' }}>
+                <span className="eyebrow" style={{ fontSize: '11px', fontWeight: 800, color: '#000000' }}>
                   SELECT CHALLENGE MODE
                 </span>
                 <h3 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 800 }}>Choose how you want to investigate</h3>
@@ -361,16 +361,15 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                   flexWrap: 'wrap',
                   gap: '16px',
                   padding: '22px 28px',
-                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%)',
-                  border: '1px solid #bae6fd',
+                  background: '#ffffff', border: '1px solid #000000', borderRadius: '4px',
                 }}
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <Trophy size={18} color="#0284c7" />
+                    <Trophy size={18} stroke="#000000" />
                     <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Global Detective Leaderboard</h4>
                   </div>
-                  <p style={{ margin: 0, color: 'var(--muted, #64748b)', fontSize: '13px' }}>
+                  <p style={{ margin: 0, color: '#000000', fontSize: '13px' }}>
                     See where you rank against investigators around the world.
                   </p>
                 </div>
@@ -395,7 +394,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                       : 'CUSTOM INVESTIGATION'}
                   </span>
                   {gameMode === 'academy' && currentChallenge && (
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted, #64748b)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#000000' }}>
                       {currentChallenge.category} · {currentChallenge.difficulty}
                     </span>
                   )}
@@ -435,7 +434,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                     <strong style={{ fontSize: '16px', letterSpacing: '0.5px' }}>
                       Sending image to Sightengine GenAI forensically...
                     </strong>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    <span style={{ fontSize: '12px', color: '#000000' }}>
                       Extracting latent diffusion signatures and sensor noise
                     </span>
                   </div>
@@ -448,7 +447,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 {gameMode === 'custom' && (
                   <div style={{ padding: '24px', width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
                     {customFile?.url ? (
-                      <img src={customFile.url} alt="Custom upload" style={{ maxHeight: '420px', borderRadius: '12px' }} />
+                      <img src={customFile.url} alt="Custom upload" style={{ maxHeight: '420px', borderRadius: '4px' }} />
                     ) : (
                       <div style={{ width: '100%', maxWidth: '480px' }}>
                         <UploadBox
@@ -475,7 +474,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: 'var(--cyan, #0284c7)',
+                      color: '#000000',
                       fontSize: '12px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -488,7 +487,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
 
               {/* Prompt Instruction */}
               <div style={{ textAlign: 'center', margin: '20px 0 10px' }}>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#000000', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   YOUR FORENSIC VERDICT
                 </span>
                 <h3 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 900 }}>
@@ -537,25 +536,21 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 <div className="result-badge-strip">
                   <div className="result-heading">
                     {currentResult.isCorrect === true ? (
-                      <CheckCircle2 size={32} color="#16a34a" />
+                      <CheckCircle2 size={32} stroke="#000000" />
                     ) : currentResult.isCorrect === false ? (
-                      <XCircle size={32} color="#dc2626" />
+                      <XCircle size={32} stroke="#000000" />
                     ) : (
-                      <AlertTriangle size={32} color="#d97706" />
+                      <AlertTriangle size={32} stroke="#000000" />
                     )}
 
                     <div>
-                      <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted, #64748b)' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#000000' }}>
                         FORENSIC VERIFICATION
                       </span>
                       <h3
                         style={{
                           color:
-                            currentResult.isCorrect === true
-                              ? '#15803d'
-                              : currentResult.isCorrect === false
-                              ? '#b91c1c'
-                              : '#b45309',
+                            '#000000',
                         }}
                       >
                         {currentResult.isCorrect === true
@@ -596,12 +591,12 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                     margin: '16px 0',
                     background: '#ffffff',
                     padding: '16px',
-                    borderRadius: '14px',
-                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    border: '1px solid #000000',
                   }}
                 >
                   <div>
-                    <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', color: '#000000', fontWeight: 600 }}>
                       YOUR PREDICTION
                     </span>
                     <div style={{ fontSize: '16px', fontWeight: 800 }}>
@@ -610,7 +605,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                   </div>
 
                   <div>
-                    <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', color: '#000000', fontWeight: 600 }}>
                       SIGHTENGINE CLASSIFICATION
                     </span>
                     <div
@@ -618,11 +613,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                         fontSize: '16px',
                         fontWeight: 800,
                         color:
-                          currentResult.aiClassification === 'AI_GENERATED'
-                            ? '#b91c1c'
-                            : currentResult.aiClassification === 'NOT_AI_GENERATED'
-                            ? '#15803d'
-                            : '#b45309',
+                          '#000000',
                       }}
                     >
                       {currentResult.aiClassification === 'AI_GENERATED'
@@ -634,10 +625,10 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                   </div>
 
                   <div>
-                    <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', color: '#000000', fontWeight: 600 }}>
                       AI GENERATION SCORE
                     </span>
-                    <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--cyan, #0284c7)' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#000000' }}>
                       {currentResult.aiScore !== null
                         ? `${(currentResult.aiScore * 100).toFixed(1)}% (${currentResult.aiScore})`
                         : 'N/A'}
@@ -645,10 +636,10 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                   </div>
 
                   <div>
-                    <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', color: '#000000', fontWeight: 600 }}>
                       CURRENT STREAK
                     </span>
-                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#d97706' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#000000' }}>
                       🔥 {currentResult.currentStreak || 0}
                     </div>
                   </div>
@@ -657,7 +648,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 {/* Sightengine Threshold Visualizer Scale */}
                 {currentResult.aiScore !== null && (
                   <div className="score-scale-wrap">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--muted, #64748b)', fontWeight: 700 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#000000', fontWeight: 700 }}>
                       <span>0% (Real Photographic Grain)</span>
                       <span>20% Lower Bound</span>
                       <span>80% AI Threshold</span>
@@ -685,13 +676,13 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
 
                 {/* XP Breakdown list */}
                 {currentResult.xpBreakdown?.length > 0 && (
-                  <div style={{ margin: '14px 0', padding: '12px 16px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>
+                  <div style={{ margin: '14px 0', padding: '12px 16px', background: '#ffffff', borderRadius: '4px', border: '1px solid #000000' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#000000', textTransform: 'uppercase' }}>
                       REWARD BREAKDOWN
                     </span>
                     <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '6px' }}>
                       {currentResult.xpBreakdown.map((item, idx) => (
-                        <span key={idx} style={{ fontSize: '13px', fontWeight: 700, color: '#15803d' }}>
+                        <span key={idx} style={{ fontSize: '13px', fontWeight: 700, color: '#000000' }}>
                           ✓ {item.reason}: +{item.xp} XP
                         </span>
                       ))}
@@ -701,16 +692,16 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
 
                 {/* Educational Breakdown */}
                 {currentResult.educationalExplanation && (
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', margin: '16px 0', padding: '14px 16px', background: '#f0f9ff', borderRadius: '12px', border: '1px solid #bae6fd' }}>
-                    <Info size={18} color="#0284c7" style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <div style={{ fontSize: '13px', color: '#0369a1', lineHeight: '1.6' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', margin: '16px 0', padding: '14px 16px', background: '#f0f9ff', borderRadius: '4px', border: '1px solid #bae6fd' }}>
+                    <Info size={18} stroke="#000000" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div style={{ fontSize: '13px', color: '#000000', lineHeight: '1.6' }}>
                       <strong>Forensic Explanation:</strong> {currentResult.educationalExplanation}
                     </div>
                   </div>
                 )}
 
                 {/* Disclaimer */}
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '11px', color: 'var(--muted, #64748b)', marginTop: '12px' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '11px', color: '#000000', marginTop: '12px' }}>
                   <AlertTriangle size={14} style={{ flexShrink: 0 }} />
                   <span>{currentResult.disclaimer}</span>
                 </div>
@@ -741,12 +732,12 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                   width: '84px',
                   height: '84px',
                   borderRadius: '24px',
-                  background: 'linear-gradient(135deg, #fef08a, #facc15)',
+                  background: '#000000', color: '#ffffff', border: '1px solid #000000',
                   display: 'grid',
                   placeItems: 'center',
                   fontSize: '44px',
                   margin: '0 auto 18px',
-                  boxShadow: '0 12px 30px rgba(234, 179, 8, 0.3)',
+                  boxShadow: 'none',
                 }}
               >
                 🏆
@@ -756,7 +747,7 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 Challenge Session Completed!
               </h2>
 
-              <p style={{ color: 'var(--muted, #64748b)', fontSize: '14px', margin: '0 0 24px' }}>
+              <p style={{ color: '#000000', fontSize: '14px', margin: '0 0 24px' }}>
                 You have sharpened your AI deepfake detection skills. Check your performance below.
               </p>
 
@@ -769,30 +760,30 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                   marginBottom: '26px',
                 }}
               >
-                <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)', fontWeight: 700 }}>QUESTIONS</span>
+                <div style={{ padding: '14px', background: '#ffffff', borderRadius: '4px', border: '1px solid #000000' }}>
+                  <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700 }}>QUESTIONS</span>
                   <div style={{ fontSize: '20px', fontWeight: 900 }}>
                     {sessionCompletedData?.session?.questionsAttempted || 0}
                   </div>
                 </div>
 
-                <div style={{ padding: '14px', background: '#f0fdf4', borderRadius: '14px', border: '1px solid #bbf7d0' }}>
-                  <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 700 }}>CORRECT</span>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#15803d' }}>
+                <div style={{ padding: '14px', background: '#000000', color: '#ffffff', borderRadius: '4px', border: '1px solid #000000' }}>
+                  <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700 }}>CORRECT</span>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#000000' }}>
                     {sessionCompletedData?.session?.correctAnswers || 0}
                   </div>
                 </div>
 
-                <div style={{ padding: '14px', background: '#fef2f2', borderRadius: '14px', border: '1px solid #fecaca' }}>
-                  <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 700 }}>INCORRECT</span>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#b91c1c' }}>
+                <div style={{ padding: '14px', background: '#ffffff', color: '#000000', borderRadius: '4px', border: '1px solid #000000' }}>
+                  <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700 }}>INCORRECT</span>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#000000' }}>
                     {sessionCompletedData?.session?.incorrectAnswers || 0}
                   </div>
                 </div>
 
-                <div style={{ padding: '14px', background: '#e0f2fe', borderRadius: '14px', border: '1px solid #bae6fd' }}>
-                  <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 700 }}>TOTAL XP</span>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#0369a1' }}>
+                <div style={{ padding: '14px', background: '#ffffff', color: '#000000', borderRadius: '4px', border: '1px solid #000000' }}>
+                  <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700 }}>TOTAL XP</span>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#000000' }}>
                     +{(sessionCompletedData?.session?.xpEarned || 0).toLocaleString()} XP
                   </div>
                 </div>
@@ -802,10 +793,9 @@ export function DeepfakeDetectiveGame({ go, back, notify }) {
                 <div
                   style={{
                     padding: '12px',
-                    borderRadius: '12px',
-                    background: '#fef3c7',
-                    border: '1px solid #fde68a',
-                    color: '#92400e',
+                    borderRadius: '4px',
+                    background: '#ffffff', border: '1px solid #000000',
+                    color: '#000000',
                     fontSize: '13px',
                     fontWeight: 700,
                     marginBottom: '24px',

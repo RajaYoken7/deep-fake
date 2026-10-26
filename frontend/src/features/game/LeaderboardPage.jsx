@@ -86,8 +86,7 @@ export function LeaderboardPage({ go, back }) {
                 gap: '8px',
                 padding: '6px 14px',
                 borderRadius: '20px',
-                background: '#fef3c7',
-                color: '#b45309',
+                background: '#000000', color: '#ffffff', border: '1px solid #000000',
                 fontSize: '12px',
                 fontWeight: 800,
                 marginBottom: '12px',
@@ -144,8 +143,7 @@ export function LeaderboardPage({ go, back }) {
                       style={{
                         position: 'absolute',
                         bottom: '-8px',
-                        background: '#64748b',
-                        color: '#fff',
+                        background: '#ffffff', color: '#000000', border: '1px solid #000000',
                         borderRadius: '50%',
                         width: '24px',
                         height: '24px',
@@ -153,16 +151,16 @@ export function LeaderboardPage({ go, back }) {
                         fontWeight: 900,
                         display: 'grid',
                         placeItems: 'center',
-                        border: '2px solid #fff',
+                        border: '2px solid #000000',
                       }}
                     >
                       2
                     </span>
                   </div>
-                  <strong style={{ fontSize: '14px', color: 'var(--foreground, #0f172a)' }}>
+                  <strong style={{ fontSize: '14px', color: '#000000' }}>
                     {topThree[0].name}
                   </strong>
-                  <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)' }}>
+                  <span style={{ fontSize: '11px', color: '#000000' }}>
                     {topThree[0].xp.toLocaleString()} XP
                   </span>
                   <div className="podium-block second" style={{ marginTop: '10px' }}>
@@ -201,8 +199,7 @@ export function LeaderboardPage({ go, back }) {
                       style={{
                         position: 'absolute',
                         bottom: '-8px',
-                        background: '#ca8a04',
-                        color: '#fff',
+                        background: '#000000', color: '#ffffff', border: '1px solid #ffffff',
                         borderRadius: '50%',
                         width: '28px',
                         height: '28px',
@@ -210,16 +207,16 @@ export function LeaderboardPage({ go, back }) {
                         fontWeight: 900,
                         display: 'grid',
                         placeItems: 'center',
-                        border: '2px solid #fff',
+                        border: '2px solid #000000',
                       }}
                     >
                       1
                     </span>
                   </div>
-                  <strong style={{ fontSize: '16px', color: 'var(--foreground, #0f172a)' }}>
+                  <strong style={{ fontSize: '16px', color: '#000000' }}>
                     {topThree[1].name}
                   </strong>
-                  <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 800 }}>
+                  <span style={{ fontSize: '12px', color: '#000000', fontWeight: 800 }}>
                     {topThree[1].xp.toLocaleString()} XP
                   </span>
                   <div className="podium-block first" style={{ marginTop: '10px' }}>
@@ -246,8 +243,7 @@ export function LeaderboardPage({ go, back }) {
                       style={{
                         position: 'absolute',
                         bottom: '-8px',
-                        background: '#b45309',
-                        color: '#fff',
+                        background: '#ffffff', color: '#000000', border: '1px solid #000000',
                         borderRadius: '50%',
                         width: '24px',
                         height: '24px',
@@ -255,16 +251,16 @@ export function LeaderboardPage({ go, back }) {
                         fontWeight: 900,
                         display: 'grid',
                         placeItems: 'center',
-                        border: '2px solid #fff',
+                        border: '2px solid #000000',
                       }}
                     >
                       3
                     </span>
                   </div>
-                  <strong style={{ fontSize: '14px', color: 'var(--foreground, #0f172a)' }}>
+                  <strong style={{ fontSize: '14px', color: '#000000' }}>
                     {topThree[2].name}
                   </strong>
-                  <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)' }}>
+                  <span style={{ fontSize: '11px', color: '#000000' }}>
                     {topThree[2].xp.toLocaleString()} XP
                   </span>
                   <div className="podium-block third" style={{ marginTop: '10px' }}>
@@ -298,7 +294,7 @@ export function LeaderboardPage({ go, back }) {
             >
               <Search
                 size={18}
-                color="var(--muted, #64748b)"
+                color="#000000"
                 style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}
               />
               <input
@@ -310,8 +306,8 @@ export function LeaderboardPage({ go, back }) {
                   width: '100%',
                   padding: '10px 14px 10px 42px',
                   borderRadius: '12px',
-                  border: '1px solid var(--line, #e2e8f0)',
-                  background: 'var(--card-bg, #ffffff)',
+                  border: '1px solid #000000',
+                  background: '#ffffff',
                   color: 'inherit',
                   fontSize: '13px',
                 }}
@@ -326,11 +322,11 @@ export function LeaderboardPage({ go, back }) {
           {/* Table Container */}
           <div className="leaderboard-table-wrap">
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted, #64748b)' }}>
+              <div style={{ textAlign: 'center', padding: '60px 0', color: '#000000' }}>
                 Loading global detective rankings...
               </div>
             ) : filteredPlayers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted, #64748b)' }}>
+              <div style={{ textAlign: 'center', padding: '60px 0', color: '#000000' }}>
                 No detectives found for this period. Be the first to earn XP!
               </div>
             ) : (
@@ -386,8 +382,7 @@ export function LeaderboardPage({ go, back }) {
                                       fontSize: '10px',
                                       padding: '2px 6px',
                                       borderRadius: '4px',
-                                      background: '#0284c7',
-                                      color: '#ffffff',
+                                      background: '#000000', color: '#ffffff', border: '1px solid #000000',
                                       fontWeight: 800,
                                     }}
                                   >
@@ -395,7 +390,7 @@ export function LeaderboardPage({ go, back }) {
                                   </span>
                                 )}
                               </div>
-                              <span style={{ fontSize: '11px', color: 'var(--muted, #64748b)' }}>
+                              <span style={{ fontSize: '11px', color: '#000000' }}>
                                 {player.currentRank}
                               </span>
                             </div>
@@ -410,7 +405,7 @@ export function LeaderboardPage({ go, back }) {
                               gap: '4px',
                               padding: '3px 8px',
                               borderRadius: '6px',
-                              background: '#f1f5f9',
+                              background: '#ffffff',
                               fontSize: '12px',
                               fontWeight: 700,
                             }}
@@ -419,21 +414,21 @@ export function LeaderboardPage({ go, back }) {
                           </span>
                         </td>
 
-                        <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--cyan, #0284c7)' }}>
+                        <td style={{ textAlign: 'right', fontWeight: 800, color: '#000000' }}>
                           {player.xp.toLocaleString()} XP
                         </td>
 
                         <td style={{ textAlign: 'right', fontWeight: 700 }}>
                           <span
                             style={{
-                              color: player.accuracy >= 70 ? '#16a34a' : player.accuracy >= 50 ? '#d97706' : '#64748b',
+                              color: '#000000',
                             }}
                           >
                             {player.accuracy}%
                           </span>
                         </td>
 
-                        <td style={{ textAlign: 'right', color: 'var(--muted, #64748b)', fontWeight: 600 }}>
+                        <td style={{ textAlign: 'right', color: '#000000', fontWeight: 600 }}>
                           {player.gamesPlayed}
                         </td>
                       </tr>

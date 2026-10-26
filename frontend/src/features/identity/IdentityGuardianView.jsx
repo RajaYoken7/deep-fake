@@ -349,11 +349,11 @@ function UploadColumn({
           <div className="upload-col-icon" style={{ marginBottom: 12 }}>
             <Upload size={22} />
           </div>
-          <strong style={{ color: '#f1f5f9', fontSize: '0.95rem' }}>{label}</strong>
-          <span style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: 4 }}>
+          <strong style={{ color: '#000000', fontSize: '0.95rem' }}>{label}</strong>
+          <span style={{ color: '#000000', fontSize: '0.82rem', marginTop: 4 }}>
             Click to browse or drag & drop file
           </span>
-          <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 8 }}>{helper}</small>
+          <small style={{ color: '#000000', fontSize: '0.78rem', marginTop: 8 }}>{helper}</small>
         </div>
       )}
     </div>
@@ -503,7 +503,7 @@ function ReportView({ report, onReset }) {
       {isSectionB && (
         <div className={`verdict-banner ${getAiVerdictClass(aiDec)}`}>
           <div>
-            <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#000000', fontWeight: 700 }}>
               AI Generation & Manipulation Analysis
             </span>
             <div className="verdict-badge">
@@ -517,10 +517,10 @@ function ReportView({ report, onReset }) {
 
           {report.aiImageAnalysis?.aiProbability !== null && (
             <div className="verdict-score-display">
-              <span style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.8rem', color: '#000000', textTransform: 'uppercase' }}>
                 Synthetic Probability
               </span>
-              <span className="score-num" style={{ color: '#c084fc' }}>
+              <span className="score-num" style={{ color: '#000000' }}>
                 {Math.round(report.aiImageAnalysis.aiProbability * 100)}%
               </span>
               <span className="threshold-label">
@@ -533,7 +533,7 @@ function ReportView({ report, onReset }) {
 
       {/* Image Quality Checks */}
       <div>
-        <h4 style={{ margin: '0 0 12px 0', color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h4 style={{ margin: '0 0 12px 0', color: '#000000', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Eye size={18} /> Image Quality & Suitability Assessment
         </h4>
         <div className="report-details-grid">
@@ -579,9 +579,9 @@ function ReportView({ report, onReset }) {
       </div>
 
       {/* Model & Service Info */}
-      <div className="detail-metric-card" style={{ background: 'rgba(2, 6, 23, 0.5)' }}>
+      <div className="detail-metric-card" style={{ background: '#ffffff', border: '1px solid #000000', borderRadius: '4px' }}>
         <span className="label">Active Vision Models & Engines</span>
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 4, fontSize: '0.88rem', color: '#cbd5e1' }}>
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 4, fontSize: '0.88rem', color: '#000000' }}>
           <div><strong>Face Engine:</strong> {report.modelInfo?.faceComparisonEngine} (v{report.modelInfo?.faceModelVersion})</div>
           {isSectionB && (
             <div><strong>AI Detector:</strong> {report.modelInfo?.aiDetectionEngine} (v{report.modelInfo?.aiDetectionVersion})</div>
@@ -597,7 +597,7 @@ function ReportView({ report, onReset }) {
         <h4><Info size={16} /> Disclaimers, Limitations & Recommendations</h4>
         <ul>
           {report.warnings?.map((w, i) => (
-            <li key={i} style={{ color: '#fbbf24' }}><strong>Warning:</strong> {w}</li>
+            <li key={i} style={{ color: '#000000' }}><strong>Warning:</strong> {w}</li>
           ))}
           {report.limitations?.map((l, i) => (
             <li key={i}>{l}</li>

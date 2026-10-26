@@ -106,9 +106,7 @@ export function HistoryPage({ go, back, notify }) {
         return (
           <span
             style={{
-              color: '#b91c1c',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
+              color: '#ffffff', background: '#000000', border: '1px solid #000000',
               padding: '3px 10px',
               borderRadius: '6px',
               fontSize: '11px',
@@ -123,9 +121,7 @@ export function HistoryPage({ go, back, notify }) {
         return (
           <span
             style={{
-              color: '#15803d',
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
+              color: '#000000', background: '#ffffff', border: '1px solid #000000',
               padding: '3px 10px',
               borderRadius: '6px',
               fontSize: '11px',
@@ -140,9 +136,7 @@ export function HistoryPage({ go, back, notify }) {
         return (
           <span
             style={{
-              color: '#b45309',
-              background: '#fffbeb',
-              border: '1px solid #fde68a',
+              color: '#000000', background: '#ffffff', border: '1px dashed #000000',
               padding: '3px 10px',
               borderRadius: '6px',
               fontSize: '11px',
@@ -240,7 +234,7 @@ export function HistoryPage({ go, back, notify }) {
               border: '1px solid var(--line)',
               borderRadius: '10px',
               width: 'min(360px, 100%)',
-              boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+              
             }}
           >
             <Search size={16} color="var(--muted)" />
@@ -285,8 +279,8 @@ export function HistoryPage({ go, back, notify }) {
                   fontSize: '12px',
                   fontWeight: 600,
                   border: filterClassification === val ? '1px solid var(--cyan)' : '1px solid var(--line)',
-                  background: filterClassification === val ? '#e0f2fe' : '#ffffff',
-                  color: filterClassification === val ? '#0284c7' : '#64748b',
+                  background: filterClassification === val ? '#000000' : '#ffffff',
+                  color: filterClassification === val ? '#ffffff' : '#000000',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
@@ -299,7 +293,7 @@ export function HistoryPage({ go, back, notify }) {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+        <div style={{ textAlign: 'center', padding: '40px', color: '#000000' }}>
           Loading your history records...
         </div>
       ) : activeTab === 'detections' ? (
@@ -325,7 +319,7 @@ export function HistoryPage({ go, back, notify }) {
                       width: '42px',
                       height: '42px',
                       borderRadius: '12px',
-                      background: 'rgba(2, 132, 199, 0.1)',
+                      background: '#000000', color: '#ffffff',
                       display: 'grid',
                       placeItems: 'center',
                       color: 'var(--cyan)',
@@ -364,7 +358,7 @@ export function HistoryPage({ go, back, notify }) {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#94a3b8',
+                      color: '#000000',
                       cursor: 'pointer',
                       padding: '6px',
                       borderRadius: '6px',
@@ -372,8 +366,8 @@ export function HistoryPage({ go, back, notify }) {
                       placeItems: 'center',
                       transition: 'color 0.2s',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#000000')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#000000')}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -414,7 +408,7 @@ export function HistoryPage({ go, back, notify }) {
                     width: '42px',
                     height: '42px',
                     borderRadius: '12px',
-                    background: 'rgba(124, 58, 237, 0.1)',
+                    background: '#000000', color: '#ffffff',
                     display: 'grid',
                     placeItems: 'center',
                     color: 'var(--purple)',
@@ -450,23 +444,11 @@ export function HistoryPage({ go, back, notify }) {
                 <span
                   style={{
                     color:
-                      item.decision === 'LIKELY SAME PERSON' || item.decision === 'SAME PERSON'
-                        ? '#15803d'
-                        : item.decision === 'LIKELY DIFFERENT PERSON' || item.decision === 'DIFFERENT PERSON'
-                        ? '#b91c1c'
-                        : '#b45309',
+                      item.decision === 'LIKELY SAME PERSON' || item.decision === 'SAME PERSON' ? '#ffffff' : '#000000',
                     background:
-                      item.decision === 'LIKELY SAME PERSON' || item.decision === 'SAME PERSON'
-                        ? '#f0fdf4'
-                        : item.decision === 'LIKELY DIFFERENT PERSON' || item.decision === 'DIFFERENT PERSON'
-                        ? '#fef2f2'
-                        : '#fffbeb',
+                      item.decision === 'LIKELY SAME PERSON' || item.decision === 'SAME PERSON' ? '#000000' : '#ffffff',
                     border:
-                      item.decision === 'LIKELY SAME PERSON' || item.decision === 'SAME PERSON'
-                        ? '1px solid #bbf7d0'
-                        : item.decision === 'LIKELY DIFFERENT PERSON' || item.decision === 'DIFFERENT PERSON'
-                        ? '1px solid #fecaca'
-                        : '1px solid #fde68a',
+                      '1px solid #000000',
                     padding: '3px 10px',
                     borderRadius: '6px',
                     fontSize: '11px',
@@ -506,7 +488,7 @@ export function HistoryPage({ go, back, notify }) {
                   width: '38px',
                   height: '38px',
                   borderRadius: '10px',
-                  background: 'rgba(2, 132, 199, 0.1)',
+                  background: '#000000', color: '#ffffff',
                   display: 'grid',
                   placeItems: 'center',
                   color: 'var(--cyan)',
@@ -556,7 +538,7 @@ export function HistoryPage({ go, back, notify }) {
               style={{
                 padding: '12px 14px',
                 borderRadius: '10px',
-                background: '#f8fafc',
+                background: '#ffffff',
                 border: '1px solid var(--line)',
                 fontSize: '12px',
                 color: 'var(--muted)',
@@ -571,7 +553,7 @@ export function HistoryPage({ go, back, notify }) {
               <Button
                 variant="secondary"
                 onClick={(e) => handleDeleteRecord(inspectModal.id, e)}
-                style={{ color: '#ef4444', borderColor: '#fca5a5' }}
+                style={{ color: '#000000', borderColor: '#000000' }}
               >
                 <Trash2 size={16} /> Delete Report
               </Button>
@@ -757,7 +739,7 @@ export function ProfilePage({ go, back, notify }) {
       </div>
 
       <GlassCard className="profile-hero-card" style={{ marginBottom: '22px' }}>
-        <div className="profile-large-avatar" style={{ background: 'linear-gradient(135deg, #0284c7, #4f46e5)' }}>
+        <div className="profile-large-avatar" style={{ background: '#000000', border: '1px solid #000000' }}>
           {user?.profilePicture ? (
             <img src={user.profilePicture} alt="Profile" />
           ) : (
@@ -776,8 +758,8 @@ export function ProfilePage({ go, back, notify }) {
                 padding: '3px 10px',
                 borderRadius: '6px',
                 background:
-                  user?.role === 'ADMIN' ? '#fee2e2' : '#e0f2fe',
-                color: user?.role === 'ADMIN' ? '#b91c1c' : '#0369a1',
+                  user?.role === 'ADMIN' ? '#000000' : '#ffffff',
+                color: user?.role === 'ADMIN' ? '#ffffff' : '#000000',
                 fontWeight: 700,
               }}
             >
@@ -787,7 +769,7 @@ export function ProfilePage({ go, back, notify }) {
           <p style={{ margin: '6px 0', color: 'var(--muted)', fontSize: '13px' }}>
             {user?.bio || 'Trust & Verification Cadet at DeepTrust Academy'}
           </p>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>{user?.email}</span>
+          <span style={{ fontSize: '12px', color: '#000000' }}>{user?.email}</span>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -891,7 +873,7 @@ export function ProfilePage({ go, back, notify }) {
               </div>
             </GlassCard>
             <GlassCard className="profile-content-card">
-              <span className="module-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <span className="module-icon" style={{ background: '#ffffff', color: '#000000' }}>
                 <Gamepad2 />
               </span>
               <h3>Deepfake Detective</h3>
@@ -943,11 +925,11 @@ export function ProfilePage({ go, back, notify }) {
                     width: '68px',
                     height: '68px',
                     borderRadius: '18px',
-                    background: 'linear-gradient(135deg, #0284c7, #6366f1)',
+                    background: '#000000', border: '1px solid #000000',
                     display: 'grid',
                     placeItems: 'center',
                     fontSize: '34px',
-                    boxShadow: '0 8px 20px rgba(2, 132, 199, 0.25)',
+                    boxShadow: 'none',
                   }}
                 >
                   {gameStats?.levelInfo?.badge || '🕵️'}
@@ -955,7 +937,7 @@ export function ProfilePage({ go, back, notify }) {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{gameStats?.currentRank || 'Bronze Detective'}</h2>
-                    <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: '#e0f2fe', color: '#0369a1', fontWeight: 800 }}>
+                    <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: '#000000', color: '#ffffff', fontWeight: 800, border: '1px solid #000000' }}>
                       LEVEL {gameStats?.currentLevel || 1}
                     </span>
                   </div>
@@ -985,12 +967,12 @@ export function ProfilePage({ go, back, notify }) {
                     : 'DeepTrust Legend (Max Level)'}
                 </span>
               </div>
-              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: '#e2e8f0', overflow: 'hidden' }}>
+              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: '#000000', overflow: 'hidden' }}>
                 <div
                   style={{
                     width: `${gameStats?.levelInfo?.progressPercent || 0}%`,
                     height: '100%',
-                    background: 'linear-gradient(90deg, #0284c7, #818cf8)',
+                    background: '#000000',
                     borderRadius: '4px',
                   }}
                 />
@@ -1002,14 +984,14 @@ export function ProfilePage({ go, back, notify }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '22px' }}>
             <GlassCard style={{ padding: '18px 20px' }}>
               <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>TOTAL XP</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#0284c7', marginTop: '4px' }}>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
                 {(gameStats?.totalXP || 0).toLocaleString()} XP
               </div>
             </GlassCard>
 
             <GlassCard style={{ padding: '18px 20px' }}>
               <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>ACCURACY</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: (gameStats?.accuracy || 0) >= 70 ? '#16a34a' : '#d97706', marginTop: '4px' }}>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
                 {gameStats?.accuracy || 0}%
               </div>
               <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Decisive predictions only</span>
@@ -1017,7 +999,7 @@ export function ProfilePage({ go, back, notify }) {
 
             <GlassCard style={{ padding: '18px 20px' }}>
               <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>GLOBAL LEADERBOARD</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#9333ea', marginTop: '4px' }}>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
                 #{gameStats?.leaderboardPosition || '--'}
               </div>
               <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Global ranking</span>
@@ -1025,7 +1007,7 @@ export function ProfilePage({ go, back, notify }) {
 
             <GlassCard style={{ padding: '18px 20px' }}>
               <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>WINNING STREAK</span>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#d97706', marginTop: '4px' }}>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#000000', marginTop: '4px' }}>
                 🔥 {gameStats?.currentStreak || 0}
               </div>
               <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Highest: {gameStats?.highestStreak || 0} consecutive</span>
@@ -1037,25 +1019,25 @@ export function ProfilePage({ go, back, notify }) {
             <GlassCard style={{ padding: '22px' }}>
               <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800 }}>Analysis Statistics</h3>
               <div style={{ display: 'grid', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
                   <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Games Played</span>
                   <strong style={{ fontSize: '14px' }}>{gameStats?.gamesPlayed || 0}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
                   <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Total Images Analysed</span>
                   <strong style={{ fontSize: '14px' }}>{gameStats?.totalAttempts || 0}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#16a34a', fontSize: '13px' }}>Correct Predictions</span>
-                  <strong style={{ fontSize: '14px', color: '#16a34a' }}>{gameStats?.correctAnswers || 0}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
+                  <span style={{ color: '#000000', fontSize: '13px' }}>Correct Predictions</span>
+                  <strong style={{ fontSize: '14px', color: '#000000' }}>{gameStats?.correctAnswers || 0}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#dc2626', fontSize: '13px' }}>Incorrect Predictions</span>
-                  <strong style={{ fontSize: '14px', color: '#dc2626' }}>{gameStats?.incorrectAnswers || 0}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #000000' }}>
+                  <span style={{ color: '#000000', fontSize: '13px' }}>Incorrect Predictions</span>
+                  <strong style={{ fontSize: '14px', color: '#000000' }}>{gameStats?.incorrectAnswers || 0}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#d97706', fontSize: '13px' }}>Inconclusive Results</span>
-                  <strong style={{ fontSize: '14px', color: '#d97706' }}>{gameStats?.inconclusiveAnswers || 0}</strong>
+                  <span style={{ color: '#000000', fontSize: '13px' }}>Inconclusive Results</span>
+                  <strong style={{ fontSize: '14px', color: '#000000' }}>{gameStats?.inconclusiveAnswers || 0}</strong>
                 </div>
               </div>
             </GlassCard>
@@ -1075,9 +1057,9 @@ export function ProfilePage({ go, back, notify }) {
                     style={{
                       aspectRatio: '1',
                       borderRadius: '12px',
-                      background: ach.isUnlocked ? '#fef3c7' : '#f1f5f9',
+                      background: ach.isUnlocked ? '#000000' : '#ffffff',
                       border: '1px solid',
-                      borderColor: ach.isUnlocked ? '#fde68a' : '#e2e8f0',
+                      borderColor: '#000000',
                       display: 'grid',
                       placeItems: 'center',
                       fontSize: '22px',
@@ -1118,7 +1100,7 @@ export function ProfilePage({ go, back, notify }) {
                 variant="secondary"
                 onClick={handleLogoutOtherSessions}
                 disabled={revokingOthers}
-                style={{ color: '#ef4444', borderColor: '#fca5a5' }}
+                style={{ color: '#000000', borderColor: '#000000' }}
               >
                 <LogOut size={16} /> {revokingOthers ? 'Logging out...' : 'Log Out All Other Devices'}
               </Button>
@@ -1141,8 +1123,8 @@ export function ProfilePage({ go, back, notify }) {
                     padding: '18px 22px',
                     flexWrap: 'wrap',
                     gap: '14px',
-                    borderColor: sess.isCurrent ? '#bae6fd' : 'var(--line)',
-                    background: sess.isCurrent ? '#f0f9ff' : '#ffffff',
+                    borderColor: '#000000',
+                    background: '#ffffff',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -1151,10 +1133,10 @@ export function ProfilePage({ go, back, notify }) {
                         width: '44px',
                         height: '44px',
                         borderRadius: '12px',
-                        background: sess.isCurrent ? '#e0f2fe' : '#f1f5f9',
+                        background: sess.isCurrent ? '#000000' : '#ffffff', border: '1px solid #000000',
                         display: 'grid',
                         placeItems: 'center',
-                        color: sess.isCurrent ? 'var(--cyan)' : '#64748b',
+                        color: sess.isCurrent ? '#ffffff' : '#000000',
                       }}
                     >
                       <Laptop size={22} />
@@ -1167,9 +1149,7 @@ export function ProfilePage({ go, back, notify }) {
                         {sess.isCurrent && (
                           <span
                             style={{
-                              background: '#dcfce7',
-                              color: '#15803d',
-                              border: '1px solid #bbf7d0',
+                              background: '#000000', color: '#ffffff', border: '1px solid #000000',
                               fontSize: '11px',
                               padding: '2px 8px',
                               borderRadius: '6px',
@@ -1232,8 +1212,7 @@ export function ProfilePage({ go, back, notify }) {
             {editError && (
               <div
                 style={{
-                  color: '#b91c1c',
-                  background: '#fef2f2',
+                  color: '#000000', background: '#ffffff', border: '1px solid #000000',
                   padding: '8px 12px',
                   borderRadius: '6px',
                   marginBottom: '10px',
@@ -1307,8 +1286,7 @@ export function ProfilePage({ go, back, notify }) {
             {pwdError && (
               <div
                 style={{
-                  color: '#b91c1c',
-                  background: '#fef2f2',
+                  color: '#000000', background: '#ffffff', border: '1px solid #000000',
                   padding: '8px 12px',
                   borderRadius: '6px',
                   marginBottom: '10px',
@@ -1509,7 +1487,7 @@ export function AdminArea({ go, back, notify }) {
                     alignItems: 'center',
                     padding: '12px 16px',
                     borderRadius: '10px',
-                    background: '#f8fafc',
+                    background: '#ffffff',
                     border: '1px solid var(--line)',
                   }}
                 >
@@ -1523,8 +1501,8 @@ export function AdminArea({ go, back, notify }) {
                       padding: '3px 10px',
                       borderRadius: '6px',
                       background:
-                        u.role === 'ADMIN' ? '#fee2e2' : '#e0f2fe',
-                      color: u.role === 'ADMIN' ? '#b91c1c' : '#0369a1',
+                        u.role === 'ADMIN' ? '#000000' : '#ffffff',
+                      color: u.role === 'ADMIN' ? '#ffffff' : '#000000',
                       fontWeight: 700,
                     }}
                   >
@@ -1563,8 +1541,8 @@ export function AdminArea({ go, back, notify }) {
                           padding: '2px 8px',
                           borderRadius: '4px',
                           background:
-                            u.role === 'ADMIN' ? '#fee2e2' : '#e0f2fe',
-                          color: u.role === 'ADMIN' ? '#b91c1c' : '#0369a1',
+                            u.role === 'ADMIN' ? '#000000' : '#ffffff',
+                          color: u.role === 'ADMIN' ? '#ffffff' : '#000000',
                           fontWeight: 700,
                         }}
                       >
@@ -1577,8 +1555,8 @@ export function AdminArea({ go, back, notify }) {
                           fontSize: '11px',
                           padding: '2px 8px',
                           borderRadius: '4px',
-                          background: u.isActive ? '#dcfce7' : '#fee2e2',
-                          color: u.isActive ? '#15803d' : '#b91c1c',
+                          background: u.isActive ? '#000000' : '#ffffff',
+                          color: u.isActive ? '#ffffff' : '#000000',
                           fontWeight: 700,
                         }}
                       >
@@ -1593,7 +1571,7 @@ export function AdminArea({ go, back, notify }) {
                           style={{
                             background: 'transparent',
                             border: 'none',
-                            color: u.isActive ? '#dc2626' : '#16a34a',
+                            color: '#000000', textDecoration: 'underline',
                             cursor: 'pointer',
                             fontSize: '12px',
                             fontWeight: 700,
@@ -1650,13 +1628,9 @@ export function AdminArea({ go, back, notify }) {
                             padding: '3px 8px',
                             borderRadius: '6px',
                             background:
-                              log.action?.includes('DEACTIVAT') || log.action?.includes('REVOKE')
-                                ? '#fee2e2'
-                                : '#e0f2fe',
+                              log.action?.includes('DEACTIVAT') || log.action?.includes('REVOKE') ? '#000000' : '#ffffff',
                             color:
-                              log.action?.includes('DEACTIVAT') || log.action?.includes('REVOKE')
-                                ? '#b91c1c'
-                                : '#0369a1',
+                              log.action?.includes('DEACTIVAT') || log.action?.includes('REVOKE') ? '#ffffff' : '#000000',
                             fontFamily: "'DM Mono', monospace",
                             fontWeight: 700,
                           }}
@@ -1697,7 +1671,7 @@ function Empty({ icon: Icon, title, text }) {
           width: '50px',
           height: '50px',
           borderRadius: '14px',
-          background: 'rgba(2, 132, 199, 0.1)',
+          background: '#000000', color: '#ffffff',
           display: 'grid',
           placeItems: 'center',
           color: 'var(--cyan)',
@@ -1720,22 +1694,8 @@ function Summary({ icon: Icon, title, count = 0, note, color = 'cyan' }) {
           width: '42px',
           height: '42px',
           borderRadius: '12px',
-          background:
-            color === 'cyan'
-              ? '#e0f2fe'
-              : color === 'purple'
-              ? '#ede9fe'
-              : color === 'green'
-              ? '#dcfce7'
-              : '#f1f5f9',
-          color:
-            color === 'cyan'
-              ? '#0284c7'
-              : color === 'purple'
-              ? '#7c3aed'
-              : color === 'green'
-              ? '#059669'
-              : '#4f46e5',
+          background: '#000000', border: '1px solid #000000',
+          color: '#ffffff',
           display: 'grid',
           placeItems: 'center',
         }}
