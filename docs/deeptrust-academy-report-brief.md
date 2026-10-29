@@ -121,7 +121,7 @@ Claude should organize Chapter 1.5 of the final report around genuine academic r
 | **FR-14** | Zero Biometrics | Strictly exclude raw image binaries, base64 strings, and biometric embedding vectors from MongoDB. | `IdentityReport.js:L8-11`, verified by test suite | **Fully Implemented** |
 | **FR-15** | Authentication & RBAC | Support user registration, login, profile updates, password change, and admin role authorization. | `authController.js`, `userController.js`, `adminController.js` | **Fully Implemented** |
 | **FR-16** | User History & Deletion| Allow authenticated users to view personal detection/verification history and delete specific records. | `userController.js:L135-171`, `detectionController.js:L81-106` | **Fully Implemented** |
-| **FR-17** | Interactive Gaming | Educational gamification center ("DeepFake Detective", "Escape Room"). | `frontend/src/pages/UserPages.jsx:L185` | **Partially Implemented (UI Mockup / Coming Soon)** |
+| **FR-17** | Interactive Gaming | Educational gamification center ("DeepFake Detective", "Cyber Crime Investigation"). | `frontend/src/pages/UserPages.jsx:L185` | **Fully Implemented** |
 | **FR-18** | Remote Microservices | Remote FastAPI AI service and CompreFace facial verification integration. | `pythonEngineService.js`, `faceComparisonService.js` | **Partially Implemented (Client Stubs with Local Fallbacks)** |
 | **FR-19** | Physical Liveness | Validate active 3D human presence through challenge-response micro-blinking. | N/A (Explicitly documented limitation) | **Planned Future Work** |
 | **FR-20** | ID Document OCR | Extract text and verify security watermarks on ID cards via OCR. | N/A (Explicitly documented limitation) | **Planned Future Work** |

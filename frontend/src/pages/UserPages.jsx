@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, Fingerprint, Gamepad2, Image, LockKeyhole, ScanSearch, ShieldCheck, Upload, AlertTriangle, Info } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, Fingerprint, Gamepad2, Image, ScanSearch, ShieldCheck, Upload, AlertTriangle, Info } from 'lucide-react'
 import { Button, GlassCard, SectionHead, UploadBox } from '../components/UI'
 import { BackButton, PublicNav } from './Modules'
 import { analyzeImage } from '../features/detection/services/detectionApi'
@@ -186,7 +186,6 @@ export function Games({ go, back }) {
   const games = [
     ['DeepFake Detective', 'Find the fake image, test your intuition, and build your deepfake awareness skills.', ScanSearch, 'cyan'],
     ['Cyber Crime Investigation', 'Investigate a digital case and identify suspicious evidence.', Fingerprint, 'purple'],
-    ['Deepfake Escape Room', 'Solve deepfake-related puzzles and complete the challenge.', LockKeyhole, 'blue'],
   ];
   const missions = [
     ['Spot the Fake', 'Practice noticing image details that may signal manipulation.', ScanSearch],
@@ -273,7 +272,7 @@ export function Games({ go, back }) {
         <h2>Interactive learning games</h2>
       </div>
 
-      <div className="game-grid">
+      <div className="game-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
         {games.map(([title, copy, Icon, color]) => (
           <GlassCard className={`game-card ${color}`} key={title}>
             <div className="game-visual">
@@ -292,13 +291,9 @@ export function Games({ go, back }) {
                 <Button className="full-btn" onClick={() => go('deepfake-detective')}>
                   Play Detective <Gamepad2 size={16} />
                 </Button>
-              ) : title === 'Cyber Crime Investigation' ? (
+              ) : (
                 <Button className="full-btn" onClick={() => go('cyber-crime-investigation')}>
                   Investigate Case <Gamepad2 size={16} />
-                </Button>
-              ) : (
-                <Button variant="disabled" className="full-btn">
-                  Coming Soon <Gamepad2 size={16} />
                 </Button>
               )}
             </div>
