@@ -19,7 +19,7 @@ const gameAttemptSchema = new mongoose.Schema(
     },
     userPrediction: {
       type: String,
-      enum: ['REAL', 'FAKE'],
+      enum: ['REAL', 'FAKE', 'AI_GENERATED'],
       required: true,
     },
     aiClassification: {

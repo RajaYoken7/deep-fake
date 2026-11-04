@@ -16,7 +16,7 @@ export async function startGameSession() {
  */
 export async function submitGamePrediction({
   sessionId,
-  userPrediction, // 'REAL' | 'FAKE'
+  userPrediction, // 'REAL' | 'FAKE' | 'AI_GENERATED'
   challengeId = null,
   file = null,
 }) {
@@ -121,9 +121,11 @@ export async function getChallenges() {
  * Synchronizes with user's global profile balance and updates levels/achievements.
  */
 export async function claimCyberCrimeReward({
-  rewardType, // 'campaign' | 'mission'
+  rewardType, // 'round' | 'campaign' | 'mission'
   attemptId = null,
+  roundId = null,
   correctCount = 0,
+  totalQuestions = null,
   missionId = null,
   dateKey = null,
 }) {
@@ -132,7 +134,9 @@ export async function claimCyberCrimeReward({
     body: JSON.stringify({
       rewardType,
       attemptId,
+      roundId,
       correctCount,
+      totalQuestions,
       missionId,
       dateKey,
     }),
@@ -140,3 +144,23 @@ export async function claimCyberCrimeReward({
   return response?.data || response;
 }
 
+/**
+ * Retrieves active and published Cyber Crime Investigation rounds from MongoDB
+ */
+export async function getCyberCrimeRounds() {
+  const response = await apiRequest('/api/game/cyber-crime/rounds', {
+    method: 'GET',
+  });
+  return response?.data || response;
+}
+
+/**
+ * Evaluates a single question answer in Cyber Crime Investigation against MongoDB
+ */
+export async function evaluateCyberCrimeAnswer({ questionId, selectedOptionId }) {
+  const response = await apiRequest('/api/game/cyber-crime/evaluate', {
+    method: 'POST',
+    body: JSON.stringify({ questionId, selectedOptionId }),
+  });
+  return response?.data || response;
+}

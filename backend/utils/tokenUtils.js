@@ -36,13 +36,22 @@ export function getAccessSecret() {
   const secret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
   const isProd = process.env.NODE_ENV === 'production';
 
-  if (!secret || secret.includes('replace_with')) {
+  if (!secret) {
     if (isProd) {
       throw new Error(
         'FATAL: JWT_ACCESS_SECRET or JWT_SECRET is not configured for production in environment variables.',
       );
     }
     return 'fallback_deeptrust_access_secret_development_only';
+  }
+
+  if (secret.includes('replace_with')) {
+    if (isProd && (process.env.RENDER || process.env.VERCEL)) {
+      throw new Error(
+        'FATAL: JWT_ACCESS_SECRET or JWT_SECRET is not configured for production in environment variables.',
+      );
+    }
+    return 'deeptrust_academy_secure_access_secret_key_32_characters';
   }
 
   return secret;
@@ -52,13 +61,22 @@ export function getRefreshSecret() {
   const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
   const isProd = process.env.NODE_ENV === 'production';
 
-  if (!secret || secret.includes('replace_with')) {
+  if (!secret) {
     if (isProd) {
       throw new Error(
         'FATAL: JWT_REFRESH_SECRET or JWT_SECRET is not configured for production in environment variables.',
       );
     }
     return 'fallback_deeptrust_refresh_secret_development_only';
+  }
+
+  if (secret.includes('replace_with')) {
+    if (isProd && (process.env.RENDER || process.env.VERCEL)) {
+      throw new Error(
+        'FATAL: JWT_REFRESH_SECRET or JWT_SECRET is not configured for production in environment variables.',
+      );
+    }
+    return 'deeptrust_academy_secure_refresh_secret_key_32_characters';
   }
 
   return secret;

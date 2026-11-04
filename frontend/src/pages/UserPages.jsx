@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, Fingerprint, Gamepad2, Image, ScanSearch, ShieldCheck, Upload, AlertTriangle, Info } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, Fingerprint, Gamepad2, Image, ScanSearch, ShieldCheck, Upload, AlertTriangle, Info, FileDown } from 'lucide-react'
 import { Button, GlassCard, SectionHead, UploadBox } from '../components/UI'
 import { BackButton, PublicNav } from './Modules'
 import { analyzeImage } from '../features/detection/services/detectionApi'
 import '../features/detection/detection.css'
 import { IdentityGuardianView } from '../features/identity/IdentityGuardianView'
+import { downloadDetectionReportPDF } from '../utils/pdfReportGenerator'
 
 export function Detection({ notify, go, back }) {
   const [file, setFile] = useState(null)
@@ -140,7 +141,20 @@ function DetectionResult({ file, result, reset }) {
             </div>
           </div>
 
-          <div className="result-actions" style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+          <div className="result-actions" style={{ display: 'flex', gap: '10px', marginTop: '24px', flexWrap: 'wrap' }}>
+            <Button
+              onClick={() =>
+                downloadDetectionReportPDF({
+                  id: result.id,
+                  fileName: file?.name,
+                  score: result.score,
+                  classification: result.classification,
+                })
+              }
+              style={{ background: '#0284c7', color: '#ffffff' }}
+            >
+              <FileDown size={16} /> Download Report (PDF)
+            </Button>
             <Button variant="secondary" onClick={reset}>
               <ArrowLeft size={16} /> Choose another image
             </Button>
@@ -186,11 +200,6 @@ export function Games({ go, back }) {
   const games = [
     ['DeepFake Detective', 'Find the fake image, test your intuition, and build your deepfake awareness skills.', ScanSearch, 'cyan'],
     ['Cyber Crime Investigation', 'Investigate a digital case and identify suspicious evidence.', Fingerprint, 'purple'],
-  ];
-  const missions = [
-    ['Spot the Fake', 'Practice noticing image details that may signal manipulation.', ScanSearch],
-    ['Identity Check', 'Learn the steps of a safe identity comparison.', Fingerprint],
-    ['Digital Investigation', 'Explore how to assess a suspicious image carefully.', ShieldCheck],
   ];
 
   return (
@@ -241,31 +250,6 @@ export function Games({ go, back }) {
           View Global Leaderboard <ArrowRight size={14} />
         </Button>
       </GlassCard>
-
-      <section className="mission-center">
-        <div className="mission-heading">
-          <span className="eyebrow">MISSION CENTER</span>
-          <h2>Choose your next challenge</h2>
-          <p>Short guided activities are being prepared for the platform.</p>
-        </div>
-        <div className="mission-grid">
-          {missions.map(([title, copy, Icon]) => (
-            <GlassCard className="mission-card" key={title}>
-              <span className="mission-icon">
-                <Icon />
-              </span>
-              <div>
-                <span className="mission-status">COMING SOON</span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-              </div>
-              <Button variant="disabled">
-                Start Mission <ArrowRight size={15} />
-              </Button>
-            </GlassCard>
-          ))}
-        </div>
-      </section>
 
       <div className="games-divider">
         <span>GAMES</span>

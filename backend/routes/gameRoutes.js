@@ -13,6 +13,8 @@ import {
   getAchievements,
   getChallenges,
   recordCyberCrimeReward,
+  getCyberCrimeRounds,
+  evaluateCyberCrimeAnswer,
 } from '../controllers/gameController.js';
 
 const gameRouter = Router();
@@ -72,5 +74,7 @@ gameRouter.get('/leaderboard/me', getMyRanking);
 gameRouter.get('/achievements', getAchievements);
 gameRouter.get('/challenges', getChallenges);
 gameRouter.post('/cyber-crime/reward', recordCyberCrimeReward);
+gameRouter.get('/cyber-crime/rounds', getCyberCrimeRounds);
+gameRouter.post('/cyber-crime/evaluate', evaluateCyberCrimeAnswer);
 
 export default gameRouter;

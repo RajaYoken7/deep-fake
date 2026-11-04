@@ -10,6 +10,7 @@ import {
   X,
   AlertTriangle,
   Printer,
+  FileDown,
   RotateCcw,
   Sparkles,
   Info,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button, GlassCard, SectionHead } from '../../components/UI';
 import { verifyIdPhotoApi, verifyAiPhotoApi } from '../../services/identityGuardianService';
+import { downloadIdentityReportPDF } from '../../utils/pdfReportGenerator';
 import './identity-guardian.css';
 
 export function IdentityGuardianView({ notify }) {
@@ -426,10 +428,13 @@ function ReportView({ report, onReset }) {
         </div>
 
         <div className="report-actions">
-          <Button variant="secondary" onClick={() => window.print()}>
-            <Printer size={16} /> Print / Export PDF
+          <Button
+            onClick={() => downloadIdentityReportPDF(report)}
+            style={{ background: '#0284c7', color: '#ffffff' }}
+          >
+            <FileDown size={16} /> Download Report (PDF)
           </Button>
-          <Button onClick={onReset}>
+          <Button variant="secondary" onClick={onReset}>
             <RotateCcw size={16} /> New Verification
           </Button>
         </div>

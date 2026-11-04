@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import mongoose from 'mongoose';
 import { GameSession } from '../models/GameSession.js';
 import { GameAttempt } from '../models/GameAttempt.js';
 import { User } from '../models/User.js';
+import { CyberCrimeRound } from '../models/CyberCrimeRound.js';
+import { CyberCrimeQuestion } from '../models/CyberCrimeQuestion.js';
 import {
   processGameSubmission,
   completeGameSession,
@@ -30,7 +33,10 @@ export async function startGameSession(req, res, next) {
       status: 'active',
     });
 
-    const challenges = getCuratedChallenges();
+    const challengeResult = await getCuratedChallenges(userId);
+    const challenges = Array.isArray(challengeResult) ? challengeResult : (challengeResult.challenges || []);
+    const allCompleted = challengeResult?.allCompleted || false;
+    const totalPublished = challengeResult?.totalPublished || 0;
     const stats = await getUserGameStats(userId);
 
     return res.status(201).json({
@@ -40,6 +46,8 @@ export async function startGameSession(req, res, next) {
         sessionId: session.sessionId,
         startedAt: session.startedAt,
         challenges,
+        allCompleted,
+        totalPublished,
         playerStats: stats,
       },
     });
@@ -66,11 +74,11 @@ export async function submitPrediction(req, res, next) {
       });
     }
 
-    if (!userPrediction || !['REAL', 'FAKE'].includes(userPrediction)) {
+    if (!userPrediction || !['REAL', 'FAKE', 'AI_GENERATED'].includes(userPrediction)) {
       if (uploadedFile) await cleanupFiles([uploadedFile]);
       return res.status(400).json({
         success: false,
-        message: 'Prediction must be either REAL or FAKE.',
+        message: 'Prediction must be either REAL, FAKE, or AI_GENERATED.',
       });
     }
 
@@ -257,7 +265,7 @@ export async function getAchievements(req, res, next) {
  */
 export async function getChallenges(_req, res, next) {
   try {
-    const challenges = getCuratedChallenges();
+    const challenges = await getCuratedChallenges();
     return res.status(200).json({
       success: true,
       data: challenges,
@@ -304,10 +312,11 @@ export async function recordCyberCrimeReward(req, res, next) {
         });
       }
       idempotencyKey = `cyber_round_${attemptId}_${roundId}`;
-      correctInUnit = Math.max(0, Math.min(3, Number(correctCount) || 0));
-      questionsInUnit = 3;
+      const totalQ = Math.max(1, Number(req.body.totalQuestions) || Number(req.body.questionsCount) || 3);
+      correctInUnit = Math.max(0, Math.min(totalQ, Number(correctCount) || 0));
+      questionsInUnit = totalQ;
       xpToAward = correctInUnit * 10;
-      attemptDescription = `Cyber Crime Investigation Round Completed (${roundId}: ${correctInUnit}/3 correct)`;
+      attemptDescription = `Cyber Crime Investigation Round Completed (${roundId}: ${correctInUnit}/${totalQ} correct)`;
     } else if (rewardType === 'campaign') {
       if (!attemptId) {
         return res.status(400).json({
@@ -432,6 +441,181 @@ export async function recordCyberCrimeReward(req, res, next) {
       },
       newlyUnlockedAchievements,
       message: `Successfully awarded ${xpToAward} EXP to shared global profile.`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * GET /api/game/cyber-crime/rounds
+ * Retrieves active and published investigation rounds and their active, published questions
+ * with ground truth correct answers strictly hidden.
+ */
+export async function getCyberCrimeRounds(req, res, next) {
+  try {
+    const rounds = await CyberCrimeRound.find({
+      $or: [{ publicationStatus: 'PUBLISHED' }, { status: 'PUBLISHED' }],
+      isActive: true,
+    })
+      .sort({ roundNumber: 1, createdAt: 1 })
+      .lean();
+
+    const userId = req.user?._id;
+    const completedRoundIds = new Set();
+    if (userId) {
+      const [attempts, u] = await Promise.all([
+        GameAttempt.find({
+          userId,
+          imageReference: { $regex: '^cyber_round_' },
+        }).select('imageReference').lean(),
+        User.findById(userId).select('cyberCrimeRewards').lean(),
+      ]);
+
+      attempts.forEach((a) => {
+        const ref = String(a.imageReference || '');
+        const parts = ref.split('_');
+        const rId = parts[parts.length - 1];
+        if (rId) completedRoundIds.add(rId);
+      });
+
+      if (u && Array.isArray(u.cyberCrimeRewards)) {
+        u.cyberCrimeRewards.forEach((k) => {
+          if (String(k).startsWith('cyber_round_')) {
+            const parts = String(k).split('_');
+            const rId = parts[parts.length - 1];
+            if (rId) completedRoundIds.add(rId);
+          }
+        });
+      }
+    }
+
+    const roundsWithQuestions = await Promise.all(
+      rounds.map(async (round) => {
+        const questions = await CyberCrimeQuestion.find({
+          $or: [
+            { roundId: round.roundId },
+            { roundId: round._id.toString() },
+          ],
+          isActive: { $ne: false },
+        })
+          .sort({ questionOrder: 1, createdAt: 1 })
+          .lean();
+
+        const isCompleted =
+          completedRoundIds.has(round._id.toString()) ||
+          completedRoundIds.has(round.roundId);
+
+        return {
+          id: round._id.toString(),
+          roundId: round.roundId,
+          roundNumber: round.roundNumber,
+          roundTitle: round.roundTitle,
+          caseDossierTitle: round.caseDossierTitle,
+          evidenceCategory: round.evidenceCategory,
+          incidentDescription: round.incidentDescription,
+          interceptedCommunication: round.interceptedCommunication || '',
+          forensicClues: round.forensicClues || '',
+          difficulty: round.difficulty,
+          isCompleted,
+          questions: questions.map((q) => ({
+            id: q._id.toString(),
+            questionId: q.questionId,
+            roundId: q.roundId,
+            questionNumber: q.questionOrder,
+            questionText: q.questionText,
+            question: q.questionText,
+            topic: round.evidenceCategory,
+            scenario: round.incidentDescription,
+            interceptedCommunication: round.interceptedCommunication || '',
+            forensicClues: round.forensicClues || '',
+            options: [
+              { id: 'a', text: q.options?.a || '' },
+              { id: 'b', text: q.options?.b || '' },
+              { id: 'c', text: q.options?.c || '' },
+              { id: 'd', text: q.options?.d || '' },
+            ],
+            difficulty: q.difficulty,
+            xpReward: q.xpReward || 10,
+          })),
+        };
+      })
+    );
+
+    const playableRounds = roundsWithQuestions.filter(
+      (r) => Array.isArray(r.questions) && r.questions.length > 0
+    );
+
+    const allCompleted =
+      playableRounds.length > 0 &&
+      playableRounds.every((r) => r.isCompleted);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        rounds: playableRounds,
+        totalRounds: playableRounds.length,
+        allCompleted,
+        totalPublished: playableRounds.length,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * POST /api/game/cyber-crime/evaluate
+ * Verifies submitted answer against stored ground truth in CyberCrimeQuestion
+ */
+export async function evaluateCyberCrimeAnswer(req, res, next) {
+  try {
+    const { questionId, selectedOptionId } = req.body;
+
+    if (!questionId || !selectedOptionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'questionId and selectedOptionId are required.',
+      });
+    }
+
+    let question = null;
+    if (mongoose.Types.ObjectId.isValid(questionId)) {
+      question = await CyberCrimeQuestion.findById(questionId);
+    }
+    if (!question) {
+      question = await CyberCrimeQuestion.findOne({ questionId });
+    }
+    if (!question && mongoose.Types.ObjectId.isValid(questionId)) {
+      question = await GameQuestion.findById(questionId);
+    }
+    if (!question) {
+      question = await GameQuestion.findOne({ questionId });
+    }
+
+    if (!question) {
+      return res.status(404).json({
+        success: false,
+        message: `Investigation question '${questionId}' was not found.`,
+      });
+    }
+
+    const normSelected = String(selectedOptionId).trim().toUpperCase();
+    const normCorrect = String(question.correctAnswer).trim().toUpperCase();
+    const isCorrect = normSelected === normCorrect;
+
+    const xpToAward = isCorrect ? (question.xpReward || 10) : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        isCorrect,
+        selectedOptionId: normSelected.toLowerCase(),
+        correctOptionId: normCorrect.toLowerCase(),
+        correctAnswer: normCorrect,
+        explanation: question.explanation,
+        xpAwarded: xpToAward,
+      },
     });
   } catch (error) {
     return next(error);

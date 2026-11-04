@@ -4,8 +4,15 @@
  * handles token expiration, queues requests during refresh, and retries seamlessly.
  */
 
-// Normalize base URL: strip trailing slash to prevent duplicate slashes
-const rawBaseUrl = import.meta.env.VITE_API_URL || '';
+// In local development on localhost/127.0.0.1, use relative paths to leverage Vite dev proxy to localhost:5000
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1');
+
+const envBaseUrl = import.meta.env.VITE_API_URL || '';
+const rawBaseUrl = isLocalhost ? '' : envBaseUrl;
 const API_BASE_URL = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 
 
@@ -73,9 +80,12 @@ export async function apiRequest(endpoint, options = {}) {
 
   // Check if response is 401 Unauthorized and request is retryable
   const isAuthEndpoint =
-    endpoint.includes('/api/auth/login') ||
-    endpoint.includes('/api/auth/register') ||
-    endpoint.includes('/api/auth/refresh');
+    endpoint.includes('/auth/login') ||
+    endpoint.includes('/auth/register') ||
+    endpoint.includes('/auth/refresh') ||
+    endpoint.includes('/admin/auth') ||
+    endpoint.includes('/admin/login') ||
+    endpoint.endsWith('/login');
 
   if (response.status === 401 && !isAuthEndpoint && !options._retry) {
     if (isRefreshing) {

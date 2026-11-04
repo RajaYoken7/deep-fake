@@ -17,7 +17,7 @@ import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { useAuth } from '../contexts/AuthContext';
 
 export function AuthPage({ mode, go, back, notify }) {
-  const { login, register } = useAuth();
+  const { login, register, adminLogin } = useAuth();
 
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -49,6 +49,11 @@ export function AuthPage({ mode, go, back, notify }) {
         setError('Passwords do not match. Please verify your password.');
         return;
       }
+    } else if (isAdmin) {
+      if (!email.trim() || !password) {
+        setError('Please provide both administrator email and password.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -59,7 +64,8 @@ export function AuthPage({ mode, go, back, notify }) {
         notify(`Welcome to DeepTrust Academy, ${data.user.name}!`);
         go('modules');
       } else if (isAdmin) {
-        const data = await login(email, password);
+        const loginFn = adminLogin || login;
+        const data = await loginFn(email, password);
         if (data.user.role !== 'ADMIN') {
           setError('Access denied: This account does not have administrator privileges.');
           return;
@@ -245,15 +251,6 @@ export function AuthPage({ mode, go, back, notify }) {
               </label>
             )}
 
-            {!isRegister && !isAdmin && (
-              <button
-                type="button"
-                className="text-link forgot"
-                onClick={() => notify('Password reset link is delivered to registered addresses.')}
-              >
-                Forgot Password?
-              </button>
-            )}
 
             <Button type="submit" className="auth-submit" disabled={loading}>
               {loading ? (
@@ -274,16 +271,57 @@ export function AuthPage({ mode, go, back, notify }) {
             </Button>
 
             <div className="auth-switch">
-              {isRegister ? 'Already have an account?' : 'New to DeepTrust?'}{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setError('');
-                  go(isRegister ? 'login' : 'register');
-                }}
-              >
-                {isRegister ? 'Login' : 'Create Account'}
-              </button>
+              {isAdmin ? (
+                <>
+                  Switch to user portal?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('');
+                      go('login');
+                    }}
+                  >
+                    User Login
+                  </button>
+                </>
+              ) : isRegister ? (
+                <>
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('');
+                      go('login');
+                    }}
+                  >
+                    Login
+                  </button>
+                </>
+              ) : (
+                <>
+                  New to DeepTrust?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('');
+                      go('register');
+                    }}
+                  >
+                    Create Account
+                  </button>
+                  <span style={{ margin: '0 8px', opacity: 0.4 }}>|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('');
+                      go('admin-login');
+                    }}
+                    style={{ color: '#0284c7', fontWeight: 600 }}
+                  >
+                    Admin Portal
+                  </button>
+                </>
+              )}
             </div>
           </form>
         </section>

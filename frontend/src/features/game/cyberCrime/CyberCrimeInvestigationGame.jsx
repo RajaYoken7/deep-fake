@@ -28,6 +28,9 @@ import {
   FileText,
   Search,
   ExternalLink,
+  RefreshCw,
+  BookOpen,
+  AlertCircle,
 } from 'lucide-react';
 import { Button, GlassCard } from '../../../components/UI';
 import { PublicNav, BackButton } from '../../../pages/Modules';
@@ -35,7 +38,6 @@ import { useAuth } from '../../../contexts/AuthContext';
 import {
   GAME_TITLE,
   GAME_SUBTITLE,
-  INVESTIGATION_ROUNDS,
   calculateAccuracy,
   getPerformanceTier,
 } from './cyberCrimeData';
@@ -45,45 +47,56 @@ import {
   getDailyMissionsForDate,
   loadUserProgress,
   saveUserProgress,
-  loadActiveAttempt,
-  saveActiveAttempt,
-  clearActiveAttempt,
-  createNewAttempt,
-  recordRoundCompletion,
-  recordCampaignCompletion,
   isMissionCompletedToday,
   recordMissionCompletion,
 } from './cyberCrimeStorage';
-import { claimCyberCrimeReward } from '../services/gameApi';
+import {
+  claimCyberCrimeReward,
+  getCyberCrimeRounds,
+  evaluateCyberCrimeAnswer,
+} from '../services/gameApi';
 import './cyberCrime.css';
 
 export function CyberCrimeInvestigationGame({ go, back, notify }) {
   const { user, updateUser } = useAuth();
   const userId = user?.id || user?._id || user?.email || 'detective_guest';
 
-  // Game flow states: 'hub' | 'campaign' | 'round_summary' | 'campaign_results' | 'mission_play'
+  // Database-backed published rounds from MongoDB Atlas
+  const [dbRounds, setDbRounds] = useState([]);
+  const [loadingDbRounds, setLoadingDbRounds] = useState(true);
+
+  // Completed deck tracking
+  const [completedDeckIds, setCompletedDeckIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`deeptrust_cyber_completed_decks_${userId}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+
+  // In-game flow states: 'hub' | 'deck_play' | 'deck_results' | 'mission_play'
   const [viewState, setViewState] = useState('hub');
-  // In-game Hub sub-tabs: 'campaign' | 'missions' (Analytics and Badges moved to Profile)
+  // Sub-tabs: 'campaign' (Deck Selection) | 'missions'
   const [activeTab, setActiveTab] = useState('campaign');
+
+  // Selected Deck and active question state
+  const [selectedDeck, setSelectedDeck] = useState(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedOptionId, setSelectedOptionId] = useState(null);
+  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
+  const [submittingAnswer, setSubmittingAnswer] = useState(false);
+  const [currentEvalResult, setCurrentEvalResult] = useState(null);
+  const [deckAnswers, setDeckAnswers] = useState([]);
+  const [showClues, setShowClues] = useState(false);
+
+  // Deck Summary data for 'deck_results'
+  const [deckSummaryData, setDeckSummaryData] = useState(null);
 
   // Persistent user statistics (Layer 2)
   const [userProgress, setUserProgress] = useState(() => loadUserProgress(userId));
   const [resetTimer, setResetTimer] = useState(() => getNextDailyResetInfo());
-
-  // Active attempt state (Layer 3)
-  const [activeAttempt, setActiveAttempt] = useState(() => loadActiveAttempt(userId));
-
-  // In-game question state for the active attempt
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedOptionId, setSelectedOptionId] = useState(null);
-  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
-  const [showClues, setShowClues] = useState(false);
-
-  // Round summary interstitial state
-  const [roundSummaryData, setRoundSummaryData] = useState(null);
-
-  // Final campaign results state
-  const [lastCampaignSummary, setLastCampaignSummary] = useState(null);
 
   // Daily Mission state
   const [selectedMission, setSelectedMission] = useState(null);
@@ -100,11 +113,74 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
     [todayDateKey]
   );
 
-  // Reload progress and active attempt when user changes
-  useEffect(() => {
-    setUserProgress(loadUserProgress(userId));
-    setActiveAttempt(loadActiveAttempt(userId));
+  // Global total XP (Layer 1): prefer authenticated user profile, fallback to local
+  const globalTotalXP = user?.totalXP !== undefined ? user.totalXP : userProgress.totalPoints;
+  const globalLevel = user?.currentLevel !== undefined ? user.currentLevel : 1;
+  const globalRank = user?.currentRank || 'Bronze Detective';
+
+  // Fetch published rounds from database
+  const fetchRounds = useCallback(async () => {
+    try {
+      setLoadingDbRounds(true);
+      const res = await getCyberCrimeRounds();
+      const loaded = res?.data?.rounds || res?.rounds || [];
+
+      // Filter only published rounds that have questions
+      const playable = loaded.filter(
+        (r) => Array.isArray(r.questions) && r.questions.length > 0
+      );
+      setDbRounds(playable);
+
+      const validDeckIds = new Set(playable.map((r) => r.id));
+
+      // Build active completed set strictly from valid playable rounds and backend metadata
+      const nextCompleted = new Set();
+      playable.forEach((r) => {
+        if (r.isCompleted) {
+          nextCompleted.add(r.id);
+        }
+      });
+
+      // Synchronize with localStorage: only retain IDs that belong to currently published playable decks
+      try {
+        const storedKey = `deeptrust_cyber_completed_decks_${userId}`;
+        const stored = localStorage.getItem(storedKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((id) => {
+              if (validDeckIds.has(id)) {
+                const deck = playable.find((r) => r.id === id);
+                if (deck && deck.isCompleted) {
+                  nextCompleted.add(deck.id);
+                }
+              }
+            });
+          }
+        }
+        localStorage.setItem(storedKey, JSON.stringify(Array.from(nextCompleted)));
+      } catch {}
+
+      setCompletedDeckIds(nextCompleted);
+
+      // If user currently had a selected deck that was deleted by admin, reset view back to hub
+      setSelectedDeck((currentSelected) => {
+        if (currentSelected && !validDeckIds.has(currentSelected.id)) {
+          setViewState('hub');
+          return null;
+        }
+        return currentSelected;
+      });
+    } catch (err) {
+      console.warn('Failed to load published Cyber Crime rounds from database:', err);
+    } finally {
+      setLoadingDbRounds(false);
+    }
   }, [userId]);
+
+  useEffect(() => {
+    fetchRounds();
+  }, [fetchRounds]);
 
   // Live timer for next UTC daily reset
   useEffect(() => {
@@ -114,359 +190,231 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Sync questions and active attempt index on resumption
+  // Reload progress when user changes
   useEffect(() => {
-    if (activeAttempt && activeAttempt.questions && activeAttempt.questions.length > 0) {
-      const idx = Math.min(
-        activeAttempt.currentQuestionIndex || 0,
-        activeAttempt.questions.length - 1
-      );
-      setCurrentQuestionIndex(idx);
-    }
-  }, [activeAttempt]);
+    setUserProgress(loadUserProgress(userId));
+  }, [userId]);
 
-  // Current active question
-  const currentQuestion = useMemo(() => {
-    if (activeAttempt && activeAttempt.questions && activeAttempt.questions[currentQuestionIndex]) {
-      return activeAttempt.questions[currentQuestionIndex];
+  // Available uncompleted decks (finished decks automatically vanish)
+  const availableDecks = useMemo(() => {
+    return dbRounds.filter(
+      (r) => !completedDeckIds.has(r.id) && !completedDeckIds.has(r.roundId) && !r.isCompleted
+    );
+  }, [dbRounds, completedDeckIds]);
+
+  // Determine if all published decks have been completed
+  const allDecksCompleted = useMemo(() => {
+    if (dbRounds.length === 0) return false;
+    return availableDecks.length === 0;
+  }, [dbRounds, availableDecks]);
+
+  // Current active question in active deck
+  const activeQuestion = useMemo(() => {
+    if (selectedDeck && selectedDeck.questions && selectedDeck.questions[currentQuestionIndex]) {
+      return selectedDeck.questions[currentQuestionIndex];
     }
     return null;
-  }, [activeAttempt, currentQuestionIndex]);
+  }, [selectedDeck, currentQuestionIndex]);
 
-  // Current round definition
-  const currentRound = useMemo(() => {
-    if (!currentQuestion) return INVESTIGATION_ROUNDS[0];
-    return (
-      INVESTIGATION_ROUNDS.find((r) => r.id === currentQuestion.roundId) ||
-      INVESTIGATION_ROUNDS[0]
-    );
-  }, [currentQuestion]);
-
-  // Calculate score for active attempt
-  const currentAttemptScore = useMemo(() => {
-    if (!activeAttempt || !activeAttempt.evaluatedAnswers) return 0;
-    return activeAttempt.evaluatedAnswers.filter((a) => a.isCorrect).length * 10;
-  }, [activeAttempt]);
-
-  // Global total XP (Layer 1): prefer authenticated user profile, fallback to local
-  const globalTotalXP = user?.totalXP !== undefined ? user.totalXP : userProgress.totalPoints;
-  const globalLevel = user?.currentLevel !== undefined ? user.currentLevel : 1;
-  const globalRank = user?.currentRank || 'Bronze Detective';
+  // Current deck accumulated score
+  const currentDeckScore = useMemo(() => {
+    return deckAnswers.filter((a) => a.isCorrect).length * 10;
+  }, [deckAnswers]);
 
   /**
-   * Starts a brand new campaign investigation playthrough (Layer 3).
-   * Generates a varied 9-question set (3 per round) avoiding recently seen questions.
+   * User selects ANY deck to play. Non-consecutive.
    */
-  const handleStartNewCampaign = () => {
-    const freshAttempt = createNewAttempt(userId, userProgress);
-    setActiveAttempt(freshAttempt);
+  const handleSelectDeck = (deck) => {
+    if (!deck || !deck.questions || deck.questions.length === 0) return;
+    setSelectedDeck(deck);
     setCurrentQuestionIndex(0);
     setSelectedOptionId(null);
     setIsAnswerSubmitted(false);
+    setCurrentEvalResult(null);
+    setDeckAnswers([]);
     setShowClues(false);
-    setRoundSummaryData(null);
-    setLastCampaignSummary(null);
-    setViewState('campaign');
+    setDeckSummaryData(null);
+    setViewState('deck_play');
   };
 
   /**
-   * Resumes an existing unfinished attempt (Layer 3).
+   * Replays current or selected deck.
    */
-  const handleResumeAttempt = () => {
-    if (!activeAttempt) {
-      handleStartNewCampaign();
+  const handleReplayDeck = () => {
+    if (!selectedDeck) {
+      setViewState('hub');
       return;
     }
+    handleSelectDeck(selectedDeck);
+  };
 
-    if (activeAttempt.pausedAtRoundSummary) {
-      setRoundSummaryData(activeAttempt.pausedAtRoundSummary);
-      setViewState('round_summary');
-      return;
+  /**
+   * Submits evaluation for the active question against MongoDB backend.
+   */
+  const handleSubmitDeckAnswer = async () => {
+    if (!selectedOptionId || isAnswerSubmitted || !activeQuestion || submittingAnswer) return;
+
+    setSubmittingAnswer(true);
+    let isCorrect = false;
+    let explanation = activeQuestion.explanation || '';
+    let correctOptionId = '';
+    let xpAwarded = 0;
+
+    try {
+      const evalRes = await evaluateCyberCrimeAnswer({
+        questionId: activeQuestion.id || activeQuestion.questionId,
+        selectedOptionId,
+      });
+
+      // Unwrap response whether it is { data: { isCorrect, ... } } or { isCorrect, ... }
+      const resObj = evalRes?.data && typeof evalRes.data === 'object' && 'isCorrect' in evalRes.data
+        ? evalRes.data
+        : evalRes;
+
+      if (resObj && typeof resObj.isCorrect === 'boolean') {
+        isCorrect = resObj.isCorrect;
+        explanation = resObj.explanation || explanation;
+        correctOptionId = String(resObj.correctOptionId || resObj.correctAnswer || '').toLowerCase();
+        xpAwarded = resObj.xpAwarded !== undefined ? resObj.xpAwarded : (isCorrect ? 10 : 0);
+      } else {
+        console.warn('Unexpected evaluate response format:', evalRes);
+        const expected = String(activeQuestion.correctAnswer || activeQuestion.correctOptionId || '').toLowerCase();
+        isCorrect = expected ? selectedOptionId.toLowerCase() === expected : false;
+        correctOptionId = expected || 'a';
+        xpAwarded = isCorrect ? 10 : 0;
+      }
+    } catch (err) {
+      console.warn('Backend answer evaluation fallback to local:', err);
+      const expected = String(activeQuestion.correctAnswer || activeQuestion.correctOptionId || '').toLowerCase();
+      isCorrect = expected ? selectedOptionId.toLowerCase() === expected : false;
+      correctOptionId = expected || 'a';
+      xpAwarded = isCorrect ? 10 : 0;
+    } finally {
+      setSubmittingAnswer(false);
     }
 
-    const idx = Math.min(
-      activeAttempt.currentQuestionIndex || 0,
-      (activeAttempt.questions?.length || 9) - 1
-    );
-    setCurrentQuestionIndex(idx);
-    setSelectedOptionId(null);
-    setIsAnswerSubmitted(false);
-    setShowClues(false);
-    setViewState('campaign');
-  };
-
-  /**
-   * Discards an unfinished attempt and starts a fresh one.
-   */
-  const handleDiscardAndNew = () => {
-    clearActiveAttempt(userId);
-    handleStartNewCampaign();
-  };
-
-  /**
-   * Submits evaluation for the active question.
-   */
-  const handleSubmitCampaignAnswer = () => {
-    if (!selectedOptionId || isAnswerSubmitted || !currentQuestion || !activeAttempt) return;
-
-    const isCorrect = selectedOptionId === currentQuestion.correctOptionId;
-    const answerRecord = {
-      questionId: currentQuestion.id,
-      roundId: currentQuestion.roundId,
-      questionNumber: currentQuestionIndex + 1,
-      selectedOptionId,
-      correctOptionId: currentQuestion.correctOptionId,
+    const evalResult = {
       isCorrect,
-      explanation: currentQuestion.explanation,
+      explanation,
+      correctOptionId,
+      xpAwarded,
+      selectedOptionId,
     };
 
-    const updatedAnswers = [...(activeAttempt.evaluatedAnswers || []), answerRecord];
-    const updatedAttempt = {
-      ...activeAttempt,
-      evaluatedAnswers: updatedAnswers,
+    setCurrentEvalResult(evalResult);
+
+    const answerRecord = {
+      questionIndex: currentQuestionIndex,
+      questionText: activeQuestion.questionText || activeQuestion.question,
+      selectedOptionId,
+      correctOptionId,
+      isCorrect,
+      explanation,
+      xpAwarded,
     };
 
-    setActiveAttempt(updatedAttempt);
-    saveActiveAttempt(userId, updatedAttempt);
+    setDeckAnswers((prev) => [...prev, answerRecord]);
     setIsAnswerSubmitted(true);
   };
 
   /**
-   * Advances to the next question or triggers round/campaign completion.
+   * Advance to next question or complete deck.
    */
-  const handleNextCampaignQuestion = async () => {
-    if (!activeAttempt || !currentQuestion) return;
+  const handleNextDeckQuestion = () => {
+    if (!selectedDeck) return;
 
-    const nextIndex = currentQuestionIndex + 1;
-    const isRound1End = nextIndex === 3; // Finished Questions 0, 1, 2
-    const isRound2End = nextIndex === 6; // Finished Questions 3, 4, 5
-    const isCampaignEnd = nextIndex >= (activeAttempt.questions?.length || 9);
-
-    if (isRound1End) {
-      // Complete Round 1 & Show Round 1 Summary Interstitial
-      const { newlyUnlockedBadges, updatedProgress, updatedAttempt } = recordRoundCompletion(
-        userId,
-        activeAttempt,
-        'round-1'
-      );
-      setUserProgress(updatedProgress);
-
-      const r1Answers = updatedAttempt.evaluatedAnswers.filter((a) => a.roundId === 'round-1');
-      const r1Correct = r1Answers.filter((a) => a.isCorrect).length;
-      const r1Accuracy = calculateAccuracy(r1Correct, r1Answers.length);
-
-      const summaryPayload = {
-        roundId: 'round-1',
-        roundNumber: 1,
-        roundTitle: 'The Phishing Trap',
-        nextRoundNumber: 2,
-        nextRoundTitle: 'The Fake Identity',
-        nextRoundOverview:
-          'In Round 2, evaluate social engineering, executive impersonation, and fraudulent colleague identities.',
-        score: r1Correct * 10,
-        maxScore: 30,
-        correctCount: r1Correct,
-        evaluatedCount: r1Answers.length,
-        accuracy: r1Accuracy,
-        newlyUnlockedBadges,
-      };
-
-      updatedAttempt.currentQuestionIndex = 3;
-      updatedAttempt.currentRoundNumber = 2;
-      updatedAttempt.currentRoundId = 'round-2';
-      updatedAttempt.pausedAtRoundSummary = summaryPayload;
-      setActiveAttempt(updatedAttempt);
-      saveActiveAttempt(userId, updatedAttempt);
-
-      // Award Round 1 EXP immediately into Global Profile
-      const r1Score = r1Correct * 10;
-      if (r1Score > 0 && user && updateUser) {
-        updateUser({
-          totalXP: (user.totalXP || 0) + r1Score,
-        });
-      }
-      if (r1Score > 0 && user) {
-        claimCyberCrimeReward({
-          rewardType: 'round',
-          attemptId: activeAttempt.attemptId,
-          roundId: 'round-1',
-          correctCount: r1Correct,
-        })
-          .then((res) => {
-            const serverUser = res?.user || res?.data?.user;
-            if (serverUser && updateUser) updateUser(serverUser);
-          })
-          .catch((err) => console.warn('Round 1 EXP sync fallback:', err?.message || err));
-      }
-
-      setRoundSummaryData(summaryPayload);
-      setViewState('round_summary');
-
-      if (newlyUnlockedBadges.length > 0 && notify) {
-        notify(`Badge Unlocked: ${newlyUnlockedBadges.map((b) => b.name).join(', ')}! (+${r1Score} EXP credited)`);
-      }
-      return;
+    if (currentQuestionIndex + 1 < selectedDeck.questions.length) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+      setSelectedOptionId(null);
+      setIsAnswerSubmitted(false);
+      setCurrentEvalResult(null);
+      setShowClues(false);
+    } else {
+      handleFinishDeck();
     }
-
-    if (isRound2End) {
-      // Complete Round 2 & Show Round 2 Summary Interstitial
-      const { newlyUnlockedBadges, updatedProgress, updatedAttempt } = recordRoundCompletion(
-        userId,
-        activeAttempt,
-        'round-2'
-      );
-      setUserProgress(updatedProgress);
-
-      const r2Answers = updatedAttempt.evaluatedAnswers.filter((a) => a.roundId === 'round-2');
-      const r2Correct = r2Answers.filter((a) => a.isCorrect).length;
-      const r2Accuracy = calculateAccuracy(r2Correct, r2Answers.length);
-
-      const cumulativeCorrect = updatedAttempt.evaluatedAnswers.filter((a) => a.isCorrect).length;
-
-      const summaryPayload = {
-        roundId: 'round-2',
-        roundNumber: 2,
-        roundTitle: 'The Fake Identity',
-        nextRoundNumber: 3,
-        nextRoundTitle: 'The Suspicious Transaction',
-        nextRoundOverview:
-          'In Round 3, investigate unauthorized fund transfers, fraudulent banking alerts, and OTP bypass vectors.',
-        score: r2Correct * 10,
-        maxScore: 30,
-        correctCount: r2Correct,
-        evaluatedCount: r2Answers.length,
-        cumulativeScore: cumulativeCorrect * 10,
-        accuracy: r2Accuracy,
-        newlyUnlockedBadges,
-      };
-
-      updatedAttempt.currentQuestionIndex = 6;
-      updatedAttempt.currentRoundNumber = 3;
-      updatedAttempt.currentRoundId = 'round-3';
-      updatedAttempt.pausedAtRoundSummary = summaryPayload;
-      setActiveAttempt(updatedAttempt);
-      saveActiveAttempt(userId, updatedAttempt);
-
-      // Award Round 2 EXP immediately into Global Profile
-      const r2Score = r2Correct * 10;
-      if (r2Score > 0 && user && updateUser) {
-        updateUser({
-          totalXP: (user.totalXP || 0) + r2Score,
-        });
-      }
-      if (r2Score > 0 && user) {
-        claimCyberCrimeReward({
-          rewardType: 'round',
-          attemptId: activeAttempt.attemptId,
-          roundId: 'round-2',
-          correctCount: r2Correct,
-        })
-          .then((res) => {
-            const serverUser = res?.user || res?.data?.user;
-            if (serverUser && updateUser) updateUser(serverUser);
-          })
-          .catch((err) => console.warn('Round 2 EXP sync fallback:', err?.message || err));
-      }
-
-      setRoundSummaryData(summaryPayload);
-      setViewState('round_summary');
-
-      if (newlyUnlockedBadges.length > 0 && notify) {
-        notify(`Badge Unlocked: ${newlyUnlockedBadges.map((b) => b.name).join(', ')}! (+${r2Score} EXP credited)`);
-      }
-      return;
-    }
-
-    if (isCampaignEnd) {
-      // Record complete campaign results locally (Layer 2)
-      const { resultRecord, updatedProgress, newlyUnlockedBadges } = recordCampaignCompletion(
-        userId,
-        activeAttempt
-      );
-      setUserProgress(updatedProgress);
-      setActiveAttempt(null);
-      clearActiveAttempt(userId);
-
-      setLastCampaignSummary({
-        ...resultRecord,
-        newlyUnlockedBadges,
-      });
-      setViewState('campaign_results');
-
-      // Award EXP into Layer 1 shared global profile immediately
-      const earnedXP = resultRecord.questionScore;
-      if (user && updateUser) {
-        updateUser({
-          totalXP: (user.totalXP || 0) + earnedXP,
-        });
-      }
-
-      // Synchronize authoritative reward with backend
-      if (user) {
-        try {
-          const rewardResponse = await claimCyberCrimeReward({
-            rewardType: 'campaign',
-            attemptId: resultRecord.attemptId,
-            correctCount: resultRecord.correctCount,
-          });
-
-          const serverUser = rewardResponse?.user || rewardResponse?.data?.user;
-          if (serverUser && updateUser) {
-            updateUser(serverUser);
-          }
-        } catch (err) {
-          console.warn('Backend EXP sync fallback:', err?.message || err);
-        }
-      }
-
-      if (notify) {
-        notify(
-          `Case Closed! You scored ${resultRecord.questionScore}/90 pts (+${resultRecord.questionScore} Global EXP credited).`
-        );
-      }
-      return;
-    }
-
-    // Advance to next question in same round
-    const updatedAttempt = {
-      ...activeAttempt,
-      currentQuestionIndex: nextIndex,
-      pausedAtRoundSummary: null,
-    };
-    setActiveAttempt(updatedAttempt);
-    saveActiveAttempt(userId, updatedAttempt);
-
-    setCurrentQuestionIndex(nextIndex);
-    setSelectedOptionId(null);
-    setIsAnswerSubmitted(false);
-    setShowClues(false);
   };
 
   /**
-   * Resumes gameplay from Round Summary interstitial into next round.
+   * Finishes the selected deck, awards EXP, and shows the Deck Results Screen.
    */
-  const handleContinueFromRoundSummary = () => {
-    if (!activeAttempt || !roundSummaryData) {
-      setViewState('campaign');
-      return;
+  const handleFinishDeck = async () => {
+    if (!selectedDeck) return;
+
+    const totalQuestions = selectedDeck.questions.length;
+    const correctCount = deckAnswers.filter((a) => a.isCorrect).length;
+    const totalScore = correctCount * 10;
+    const maxScore = totalQuestions * 10;
+    const accuracy = calculateAccuracy(correctCount, totalQuestions);
+
+    const deckUniqueId = selectedDeck.id || selectedDeck._id;
+
+    // Persist completed deck ID
+    setCompletedDeckIds((prev) => {
+      const updated = new Set(prev);
+      if (deckUniqueId) updated.add(deckUniqueId);
+      try {
+        localStorage.setItem(
+          `deeptrust_cyber_completed_decks_${userId}`,
+          JSON.stringify(Array.from(updated))
+        );
+      } catch {}
+      return updated;
+    });
+
+    // Synchronize in-memory dbRounds state so UI updates immediately
+    setDbRounds((prev) =>
+      prev.map((r) =>
+        r.id === deckUniqueId || r.roundId === selectedDeck.roundId
+          ? { ...r, isCompleted: true }
+          : r
+      )
+    );
+
+    // Award EXP authoritatively to global profile
+    if (user) {
+      try {
+        const rewardRes = await claimCyberCrimeReward({
+          rewardType: 'round',
+          attemptId: 'deck_' + Date.now(),
+          roundId: deckUniqueId || selectedDeck.roundId,
+          correctCount,
+          totalQuestions,
+        });
+
+        const serverUser = rewardRes?.user || rewardRes?.data?.user;
+        if (serverUser && updateUser) {
+          updateUser(serverUser);
+        } else if (totalScore > 0 && updateUser) {
+          updateUser({
+            totalXP: (user.totalXP || 0) + totalScore,
+          });
+        }
+      } catch (err) {
+        console.warn('EXP claim fallback:', err);
+        if (totalScore > 0 && updateUser) {
+          updateUser({
+            totalXP: (user.totalXP || 0) + totalScore,
+          });
+        }
+      }
     }
 
-    const nextIndex = roundSummaryData.roundNumber * 3;
-    const updatedAttempt = {
-      ...activeAttempt,
-      currentQuestionIndex: nextIndex,
-      pausedAtRoundSummary: null,
+    if (notify) {
+      notify(`Deck Completed! +${totalScore} Global EXP awarded.`);
+    }
+
+    const summaryPayload = {
+      deck: selectedDeck,
+      score: totalScore,
+      maxScore,
+      accuracy,
+      correctCount,
+      totalQuestions,
+      answers: deckAnswers,
     };
 
-    setActiveAttempt(updatedAttempt);
-    saveActiveAttempt(userId, updatedAttempt);
-
-    setCurrentQuestionIndex(nextIndex);
-    setSelectedOptionId(null);
-    setIsAnswerSubmitted(false);
-    setShowClues(false);
-    setRoundSummaryData(null);
-    setViewState('campaign');
+    setDeckSummaryData(summaryPayload);
+    setViewState('deck_results');
   };
 
   /**
@@ -482,8 +430,6 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
 
   /**
    * Submit evaluation for daily mission.
-   * If correct: awards configured EXP and updates global profile.
-   * If incorrect: displays failure message and awards ZERO EXP.
    */
   const handleSubmitMissionAnswer = async () => {
     if (!missionSelectedOption || isMissionSubmitted || !selectedMission) return;
@@ -492,7 +438,6 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
     setIsMissionSubmitted(true);
 
     let rewardAwarded = 0;
-    let alreadyCompleted = false;
 
     if (isCorrect) {
       const completionResult = recordMissionCompletion(
@@ -502,17 +447,14 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
         todayDateKey
       );
       rewardAwarded = completionResult.rewardAwarded;
-      alreadyCompleted = completionResult.alreadyCompleted;
       setUserProgress(completionResult.updatedProgress);
 
-      // Award EXP into Layer 1 shared global profile immediately
       if (rewardAwarded > 0 && user && updateUser) {
         updateUser({
           totalXP: (user.totalXP || 0) + rewardAwarded,
         });
       }
 
-      // Synchronize with backend API authoritatively
       if (rewardAwarded > 0 && user) {
         try {
           const rewardResponse = await claimCyberCrimeReward({
@@ -542,7 +484,6 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
     setMissionResultData({
       isCorrect,
       rewardAwarded,
-      alreadyCompleted,
       explanation: selectedMission.question.explanation,
     });
   };
@@ -556,6 +497,8 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
         <div className="cyber-game-container">
           {/* Breadcrumb Navigation */}
           <div className="cyber-breadcrumb">
+            <button onClick={() => go('modules')}>DeepTrust Academy</button>
+            <span className="cyber-breadcrumb-separator">/</span>
             <button onClick={() => go('games')}>Game Center</button>
             <span className="cyber-breadcrumb-separator">/</span>
             <button
@@ -564,39 +507,29 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
             >
               Cyber Crime Investigation
             </button>
-            {viewState === 'campaign' && currentRound && (
+            {viewState === 'deck_play' && selectedDeck && (
               <>
                 <span className="cyber-breadcrumb-separator">/</span>
-                <span>
-                  Round {currentRound.roundNumber}: {currentRound.title}
+                <span style={{ color: 'var(--text, #0f172a)', fontWeight: 700 }}>
+                  Deck #{selectedDeck.roundNumber}: {selectedDeck.roundTitle}
                 </span>
               </>
             )}
-            {viewState === 'round_summary' && roundSummaryData && (
+            {viewState === 'deck_results' && selectedDeck && (
               <>
                 <span className="cyber-breadcrumb-separator">/</span>
-                <span>Round {roundSummaryData.roundNumber} Assessment</span>
-              </>
-            )}
-            {viewState === 'campaign_results' && (
-              <>
-                <span className="cyber-breadcrumb-separator">/</span>
-                <span>Final Performance Report</span>
-              </>
-            )}
-            {viewState === 'mission_play' && selectedMission && (
-              <>
-                <span className="cyber-breadcrumb-separator">/</span>
-                <span>Daily Mission: {selectedMission.title}</span>
+                <span style={{ color: 'var(--text, #0f172a)', fontWeight: 700 }}>
+                  Deck Results: {selectedDeck.roundTitle}
+                </span>
               </>
             )}
           </div>
 
-          {/* Top Hero Banner: Displays Shared Global Profile (Layer 1) & Cyber Stats */}
+          {/* Hero Header Banner */}
           <div className="cyber-hero-banner">
             <div className="cyber-hero-title-group">
               <div className="cyber-hero-icon">
-                <Fingerprint size={32} />
+                <ShieldCheck size={32} />
               </div>
               <div className="cyber-hero-text">
                 <h1>{GAME_TITLE}</h1>
@@ -604,296 +537,217 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
               </div>
             </div>
 
+            {/* Profile Level & XP Pill */}
             <div className="cyber-hero-stats">
-              {/* Shared Global Profile Balance (Layer 1) */}
-              <div className="cyber-stat-pill points" title="Shared Global Profile EXP from all games">
-                <Trophy size={16} />
+              <div className="cyber-stat-pill">
+                <Sparkles size={16} color="var(--purple, #7c3aed)" />
                 <span>{globalTotalXP} Global EXP</span>
               </div>
-              <div className="cyber-stat-pill" title="Global Profile Level">
+              <div className="cyber-stat-pill">
                 <Award size={16} />
                 <span>Level {globalLevel} • {globalRank}</span>
-              </div>
-              <div
-                className="cyber-stat-pill"
-                style={{ cursor: 'pointer' }}
-                onClick={() => go('profile')}
-                title="View Full Game Analysis in Profile"
-              >
-                <BarChart3 size={16} />
-                <span>Profile Analytics ↗</span>
               </div>
             </div>
           </div>
 
-          {/* VIEW: HUB / DASHBOARD */}
+          {/* =========================================================================
+              VIEW: HUB (INVESTIGATION DECKS)
+              ========================================================================= */}
           {viewState === 'hub' && (
             <div>
-              {/* Ongoing Attempt Resumption Banner (Layer 3) */}
-              {activeAttempt && !activeAttempt.isComplete && (
-                <div className="cyber-resume-banner">
-                  <div className="cyber-resume-content">
-                    <div className="cyber-resume-icon">
-                      <Play size={22} />
-                    </div>
-                    <div className="cyber-resume-details">
-                      <h4>Active Case in Progress</h4>
-                      <p>
-                        Round {activeAttempt.currentRoundNumber || 1}:{' '}
-                        {activeAttempt.currentRoundId === 'round-1'
-                          ? 'The Phishing Trap'
-                          : activeAttempt.currentRoundId === 'round-2'
-                          ? 'The Fake Identity'
-                          : 'The Suspicious Transaction'}{' '}
-                        • Question {(activeAttempt.currentQuestionIndex || 0) + 1} of 9 • Current
-                        Score: {currentAttemptScore} pts
+              {/* Case 1: Loading state */}
+              {loadingDbRounds && (
+                    <div className="waiting-admin-deck" style={{ padding: '60px 24px' }}>
+                      <RotateCcw size={40} className="spin-icon" style={{ color: '#0284c7', margin: '0 auto 16px' }} />
+                      <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>
+                        Connecting to Forensic Case Database...
+                      </h3>
+                      <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
+                        Retrieving published investigation decks from MongoDB Atlas.
                       </p>
                     </div>
-                  </div>
-                  <div className="cyber-resume-actions">
-                    <Button variant="primary" onClick={handleResumeAttempt}>
-                      <Play size={16} /> Resume Investigation
-                    </Button>
-                    <Button variant="secondary" onClick={handleDiscardAndNew}>
-                      Discard & Start Fresh
-                    </Button>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* Navigation Tabs (Campaign & Daily Missions) */}
-              <div className="cyber-nav-tabs">
-                <button
-                  className={`cyber-tab-btn ${activeTab === 'campaign' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('campaign')}
-                >
-                  <ShieldCheck size={18} />
-                  Investigation Campaign (3 Rounds)
-                </button>
-                <button
-                  className={`cyber-tab-btn ${activeTab === 'missions' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('missions')}
-                >
-                  <Calendar size={18} />
-                  Daily Missions
-                </button>
-              </div>
-
-              {/* TAB 1: CAMPAIGN */}
-              {activeTab === 'campaign' && (
-                <div className="cyber-welcome-card">
-                  <div className="cyber-welcome-header">
-                    <div>
-                      <h2>Investigate Digital Crime Scenarios</h2>
-                      <p>
-                        Analyze real forensic evidence, identify deceptive social engineering, and
-                        protect corporate infrastructure through 3 consecutive investigation rounds.
-                        Each playthrough dynamically draws fresh challenges from a comprehensive 90+
-                        scenario library.
-                      </p>
-                    </div>
-                    <Button
-                      onClick={activeAttempt ? handleResumeAttempt : handleStartNewCampaign}
-                      variant="primary"
-                    >
-                      <Gamepad2 size={18} />{' '}
-                      {activeAttempt ? 'Resume Active Case' : 'Start Investigation'}
-                    </Button>
-                  </div>
-
-                  <div className="cyber-rounds-preview-grid">
-                    {INVESTIGATION_ROUNDS.map((round) => (
-                      <div key={round.id} className="cyber-round-preview-card">
-                        <div className="cyber-round-preview-header">
-                          <span className="cyber-round-badge">Round {round.roundNumber}</span>
-                          {round.id === 'round-1' && <Mail size={18} color="var(--purple)" />}
-                          {round.id === 'round-2' && <UserCheck size={18} color="var(--blue)" />}
-                          {round.id === 'round-3' && <CreditCard size={18} color="var(--cyan)" />}
-                        </div>
-                        <h3>{round.title}</h3>
-                        <p>{round.overview}</p>
+                  {/* Case 2: Zero published rounds in database -> Waiting Screen */}
+                  {!loadingDbRounds && dbRounds.length === 0 && (
+                    <div className="waiting-admin-deck">
+                      <div className="waiting-radar-icon">
+                        <Fingerprint size={42} />
                       </div>
-                    ))}
-                  </div>
+                      <span className="waiting-admin-badge">AWAITING INVESTIGATION CASES</span>
+                      <h2 style={{ fontSize: '24px', fontWeight: 900, margin: '8px 0 12px', color: '#0f172a' }}>
+                        No Active Investigation Cases Available
+                      </h2>
+                      <p style={{ color: '#64748b', fontSize: '15px', lineHeight: 1.6, margin: '0 auto 28px', maxWidth: '480px' }}>
+                        All investigation cases have been concluded. Please wait for the administrator to upload new investigation rounds and questions. Once uploaded, you can continue playing.
+                      </p>
+                      <Button
+                        variant="primary"
+                        disabled={loadingDbRounds}
+                        onClick={fetchRounds}
+                        style={{ minWidth: '240px', padding: '12px 24px', fontSize: '15px', fontWeight: 700 }}
+                      >
+                        <RotateCcw size={18} className={loadingDbRounds ? 'spin-icon' : ''} style={{ marginRight: '8px' }} />
+                        {loadingDbRounds ? 'Checking Database...' : 'Check for New Rounds (Refresh)'}
+                      </Button>
+                    </div>
+                  )}
 
-                  {userProgress.lastCampaignResult && (
-                    <div
-                      style={{
-                        padding: '16px 20px',
-                        borderRadius: '14px',
-                        background: 'var(--surface2, #f8fafc)',
-                        border: '1px solid var(--line, #e2e8f0)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '12px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Trophy size={20} color="var(--cyan)" />
+                  {/* Case 3: All published decks finished by user -> Waiting for Admin Upload Screen */}
+                  {!loadingDbRounds && dbRounds.length > 0 && availableDecks.length === 0 && (
+                    <div className="waiting-admin-deck">
+                      <div className="waiting-radar-icon" style={{ background: 'linear-gradient(135deg, #dcfce7, #d1fae5)', border: '1px solid #86efac', color: '#059669' }}>
+                        <CheckCircle2 size={42} />
+                      </div>
+                      <span className="waiting-admin-badge" style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
+                        ALL INVESTIGATION CASES SOLVED
+                      </span>
+                      <h2 style={{ fontSize: '24px', fontWeight: 900, margin: '8px 0 12px', color: '#0f172a' }}>
+                        All Available Investigation Decks Completed!
+                      </h2>
+                      <p style={{ color: '#64748b', fontSize: '15px', lineHeight: 1.6, margin: '0 auto 28px', maxWidth: '480px' }}>
+                        You have successfully solved every published investigation case! Please wait for the administrator to upload new investigation rounds and questions. Once uploaded, you can continue playing immediately.
+                      </p>
+                      <Button
+                        variant="primary"
+                        disabled={loadingDbRounds}
+                        onClick={fetchRounds}
+                        style={{ minWidth: '240px', padding: '12px 24px', fontSize: '15px', fontWeight: 700 }}
+                      >
+                        <RotateCcw size={18} className={loadingDbRounds ? 'spin-icon' : ''} style={{ marginRight: '8px' }} />
+                        {loadingDbRounds ? 'Checking Database...' : 'Check for New Rounds (Refresh)'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Case 4: Uncompleted active decks available -> Render availableDecks only */}
+                  {!loadingDbRounds && availableDecks.length > 0 && (
+                    <div>
+                      {/* Section Heading & Refresh Shortcut */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                         <div>
-                          <strong style={{ fontSize: '14px', color: 'var(--text)' }}>
-                            Last Completed Investigation
-                          </strong>
-                          <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>
-                            Score: {userProgress.lastCampaignResult.questionScore}/90 pts • Accuracy:{' '}
-                            {userProgress.lastCampaignResult.accuracy}% (
-                            {userProgress.lastCampaignResult.correctCount}/
-                            {userProgress.lastCampaignResult.evaluatedCount} correct)
+                          <h2 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 800, color: 'var(--text, #0f172a)' }}>
+                            Select an Investigation Deck
+                          </h2>
+                          <p style={{ margin: 0, fontSize: '14px', color: 'var(--muted, #64748b)' }}>
+                            Choose any case below to investigate forensic clues and identify deceptive threats. Finished cases automatically vanish.
                           </p>
                         </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
                         <Button
                           variant="secondary"
-                          onClick={() => {
-                            setLastCampaignSummary(userProgress.lastCampaignResult);
-                            setViewState('campaign_results');
-                          }}
+                          onClick={fetchRounds}
+                          disabled={loadingDbRounds}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                         >
-                          View Results Report
+                          <RotateCcw size={16} className={loadingDbRounds ? 'spin-icon' : ''} />
+                          Check for Updates
                         </Button>
-                        <Button variant="secondary" onClick={() => go('profile')}>
-                          <BarChart3 size={16} /> Profile Analytics
-                        </Button>
+                      </div>
+
+                      {/* DECK GRID: User can select ANY active uncompleted card */}
+                      <div className="cyber-rounds-preview-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+                        {availableDecks.map((deck) => {
+                          return (
+                            <div
+                              key={deck.id || deck.roundId}
+                              className="cyber-round-preview-card"
+                              style={{
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                border: '1px solid var(--line, #e2e8f0)',
+                                background: 'var(--card-bg, #ffffff)',
+                                transition: 'all 0.2s ease',
+                              }}
+                              onClick={() => handleSelectDeck(deck)}
+                            >
+                              <div>
+                                <div className="cyber-round-preview-header" style={{ marginBottom: '14px' }}>
+                                  <span className="cyber-round-badge">
+                                    Round {deck.roundNumber}
+                                  </span>
+                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                    <span
+                                      className={`cyber-difficulty-badge ${deck.difficulty?.toLowerCase() || 'medium'}`}
+                                      style={{ fontSize: '11px', padding: '3px 8px' }}
+                                    >
+                                      {deck.difficulty || 'Medium'}
+                                    </span>
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: 800,
+                                        color: '#0284c7',
+                                        background: '#e0f2fe',
+                                        padding: '3px 8px',
+                                        borderRadius: '12px',
+                                      }}
+                                    >
+                                      <Sparkles size={12} /> ACTIVE CASE
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 6px', color: 'var(--text, #0f172a)' }}>
+                                  {deck.roundTitle}
+                                </h3>
+
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+                                  {deck.caseDossierTitle} • {deck.evidenceCategory}
+                                </div>
+
+                                <p style={{ fontSize: '13px', color: 'var(--muted, #64748b)', margin: '0 0 14px', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                  {deck.incidentDescription}
+                                </p>
+                              </div>
+
+                              <div style={{ paddingTop: '16px', borderTop: '1px solid var(--line, #e2e8f0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted, #64748b)' }}>
+                                  {deck.questions?.length || 0} Forensic Challenges
+                                </span>
+                                <Button
+                                  variant="primary"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectDeck(deck);
+                                  }}
+                                  style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 700 }}
+                                >
+                                  Investigate Case →
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* TAB 2: DAILY MISSIONS */}
-              {activeTab === 'missions' && (
-                <div className="cyber-missions-section">
-                  <div className="cyber-missions-header">
-                    <div>
-                      <h2 style={{ margin: '0 0 4px', fontSize: '20px', fontWeight: 800 }}>
-                        Today's Cyber Defense Missions
-                      </h2>
-                      <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
-                        Targeted mini-investigations refreshing daily at 00:00 UTC. Earn bonus EXP
-                        that contributes directly to your shared Global Profile.
-                      </p>
-                    </div>
-                    <div className="cyber-reset-timer">
-                      <Clock size={16} />
-                      <span>Next Reset: in {resetTimer.formatted} (00:00 UTC)</span>
-                    </div>
-                  </div>
-
-                  <div className="cyber-missions-grid">
-                    {dailyMissions.map((mission) => {
-                      const isCompleted = isMissionCompletedToday(userId, mission.id, todayDateKey);
-                      return (
-                        <div
-                          key={mission.id}
-                          className={`cyber-mission-card ${isCompleted ? 'completed' : ''}`}
-                        >
-                          <div>
-                            <div className="cyber-mission-top">
-                              <span className={`cyber-difficulty-badge ${mission.difficulty}`}>
-                                {mission.difficulty}
-                              </span>
-                              <span className="cyber-mission-reward">
-                                <Sparkles size={14} /> +{mission.rewardXP} Global EXP
-                              </span>
-                            </div>
-
-                            <h3 className="cyber-mission-title" style={{ marginTop: '12px' }}>
-                              {mission.title}
-                            </h3>
-                            <p className="cyber-mission-desc">{mission.description}</p>
-
-                            <div style={{ margin: '14px 0 0' }}>
-                              <strong
-                                style={{
-                                  fontSize: '11px',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.5px',
-                                  color: 'var(--muted)',
-                                  display: 'block',
-                                  marginBottom: '6px',
-                                }}
-                              >
-                                Mission Objectives
-                              </strong>
-                              <ul className="cyber-mission-objectives">
-                                {mission.objectives.map((obj, i) => (
-                                  <li key={i}>
-                                    <CheckCircle2 size={13} /> {obj}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-
-                          <div style={{ paddingTop: '10px' }}>
-                            {isCompleted ? (
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  gap: '10px',
-                                  flexWrap: 'wrap',
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    fontSize: '12px',
-                                    fontWeight: 700,
-                                    color: 'var(--green, #059669)',
-                                  }}
-                                >
-                                  <CheckCircle2 size={16} /> Mission Completed Today (+{mission.rewardXP} EXP)
-                                </span>
-                                <Button
-                                  variant="secondary"
-                                  onClick={() => handleStartMission(mission)}
-                                >
-                                  Review Scenario
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                variant="primary"
-                                onClick={() => handleStartMission(mission)}
-                                style={{ width: '100%' }}
-                              >
-                                Investigate Mission <ArrowRight size={16} />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* VIEW: PLAYING ACTIVE CAMPAIGN (Layer 3) */}
-          {viewState === 'campaign' && currentQuestion && (
+          {/* =========================================================================
+              VIEW: PLAYING SELECTED DECK
+              ========================================================================= */}
+          {viewState === 'deck_play' && selectedDeck && activeQuestion && (
             <div>
-              {/* Question Progress Header */}
+              {/* Question Progress Header Bar */}
               <div className="cyber-question-tracker-bar">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   <span className="cyber-round-badge">
-                    Round {currentRound.roundNumber}: {currentRound.title}
+                    Deck #{selectedDeck.roundNumber}: {selectedDeck.roundTitle}
                   </span>
                   <div className="cyber-dots-container">
-                    {(activeAttempt?.questions || []).map((_, i) => (
+                    {(selectedDeck.questions || []).map((_, i) => (
                       <span
                         key={i}
                         className={`cyber-step-dot ${
                           i === currentQuestionIndex
                             ? 'active'
-                            : i < (activeAttempt?.evaluatedAnswers?.length || 0)
+                            : i < deckAnswers.length
                             ? 'completed'
                             : ''
                         }`}
@@ -904,12 +758,10 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
-                    Question {currentQuestionIndex + 1} of{' '}
-                    {activeAttempt?.questions?.length || 9}
+                    Question {currentQuestionIndex + 1} of {selectedDeck.questions.length}
                   </span>
                   <span className="cyber-question-score-pill">
-                    Score: {currentAttemptScore} /{' '}
-                    {(activeAttempt?.questions?.length || 9) * 10} pts
+                    Score: {currentDeckScore} / {selectedDeck.questions.length * 10} pts
                   </span>
                 </div>
               </div>
@@ -920,12 +772,12 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                 <div className="cyber-evidence-card">
                   <div className="cyber-evidence-header">
                     <h3>
-                      <Fingerprint size={20} color="var(--purple)" /> Case Evidence Dossier
+                      <Fingerprint size={20} color="var(--purple)" /> {selectedDeck.caseDossierTitle || 'Case Evidence Dossier'}
                     </h3>
-                    <span className="cyber-round-badge">{currentQuestion.topic || currentRound.category}</span>
+                    <span className="cyber-round-badge">{selectedDeck.evidenceCategory || 'Digital Forensics'}</span>
                   </div>
 
-                  {/* High-tech Evidence Scenario Box */}
+                  {/* Incident Description */}
                   <div
                     style={{
                       padding: '16px 18px',
@@ -947,9 +799,43 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                         color: 'var(--cyan, #0284c7)',
                       }}
                     >
-                      Incident Description & Intercepted Communication:
+                      Incident Description:
                     </strong>
-                    {currentQuestion.scenario}
+                    <p style={{ margin: '0 0 10px 0' }}>
+                      {selectedDeck.incidentDescription}
+                    </p>
+
+                    {selectedDeck.interceptedCommunication && (
+                      <div style={{ marginTop: '12px' }}>
+                        <strong
+                          style={{
+                            display: 'block',
+                            marginBottom: '6px',
+                            fontSize: '12px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            color: 'var(--purple, #7c3aed)',
+                          }}
+                        >
+                          Intercepted Communication:
+                        </strong>
+                        <pre
+                          style={{
+                            margin: 0,
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            background: 'var(--surface, #ffffff)',
+                            border: '1px solid var(--line, #e2e8f0)',
+                            fontSize: '13px',
+                            fontFamily: 'monospace',
+                            whiteSpace: 'pre-wrap',
+                            color: 'var(--text, #0f172a)',
+                          }}
+                        >
+                          {selectedDeck.interceptedCommunication}
+                        </pre>
+                      </div>
+                    )}
                   </div>
 
                   {/* Forensic Clues Inspection Toggle */}
@@ -967,10 +853,10 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div className="cyber-clue-item warning">
                           <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-                          <div>
-                            <strong>Forensic Guidance:</strong> Look closely at urgency indicators,
-                            unusual sender addresses, unsolicited financial transfers, or requests
-                            that bypass standard verification protocols.
+                          <div style={{ whiteSpace: 'pre-line' }}>
+                            <strong>Forensic Clues: </strong>
+                            {selectedDeck.forensicClues ||
+                              'Analyze indicators of artificial urgency, spoofed domains, unexpected payment requests, or unusual communication protocols.'}
                           </div>
                         </div>
                       </div>
@@ -982,34 +868,50 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                 <div className="cyber-question-card">
                   <div className="cyber-question-header">
                     <span className="cyber-question-number">
-                      Question {currentQuestionIndex + 1} of{' '}
-                      {activeAttempt?.questions?.length || 9}
+                      Forensic Challenge {currentQuestionIndex + 1} of {selectedDeck.questions.length}
                     </span>
                     <span className="cyber-question-score-pill">+10 Global EXP</span>
                   </div>
 
-                  <h3 className="cyber-question-prompt">{currentQuestion.question}</h3>
+                  <h3 className="cyber-question-prompt">
+                    {activeQuestion.questionText || activeQuestion.question}
+                  </h3>
 
-                  {/* 4 Shuffled Options with Preserved Correct Mapping */}
+                  {/* Options (A, B, C, D) */}
                   <div className="cyber-options-list">
-                    {currentQuestion.options.map((option) => {
-                      const isSelected = selectedOptionId === option.id;
-                      const isCorrect = isAnswerSubmitted && option.id === currentQuestion.correctOptionId;
-                      const isIncorrect = isAnswerSubmitted && isSelected && !isCorrect;
+                    {(activeQuestion.options || []).map((option) => {
+                      const optId = option.id.toLowerCase();
+                      const isSelected = selectedOptionId === optId;
+                      const isCorrectAnswer = isAnswerSubmitted && currentEvalResult && optId === currentEvalResult.correctOptionId;
+                      const isSelectedWrong = isAnswerSubmitted && isSelected && !currentEvalResult?.isCorrect;
 
                       let stateClass = '';
-                      if (isCorrect) stateClass = 'correct';
-                      else if (isIncorrect) stateClass = 'incorrect';
-                      else if (isSelected) stateClass = 'selected';
+                      let customStyle = {};
+                      if (isCorrectAnswer) {
+                        stateClass = 'correct';
+                        customStyle = { border: '2.5px solid #059669', background: '#ecfdf5', color: '#065f46' };
+                      } else if (isSelectedWrong) {
+                        stateClass = 'incorrect';
+                        customStyle = { border: '2.5px solid #dc2626', background: '#fef2f2', color: '#991b1b' };
+                      } else if (isAnswerSubmitted) {
+                        customStyle = { opacity: 0.5 };
+                      } else if (isSelected) {
+                        stateClass = 'selected';
+                      }
 
                       return (
                         <button
-                          key={option.id}
+                          key={optId}
                           className={`cyber-option-btn ${stateClass}`}
-                          disabled={isAnswerSubmitted}
-                          onClick={() => setSelectedOptionId(option.id)}
+                          style={customStyle}
+                          disabled={isAnswerSubmitted || submittingAnswer}
+                          onClick={() => setSelectedOptionId(optId)}
                         >
-                          <span className="cyber-option-letter">{option.id.toUpperCase()}</span>
+                          <span className="cyber-option-letter" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                            {isCorrectAnswer && <Check size={14} color="#059669" />}
+                            {isSelectedWrong && <X size={14} color="#dc2626" />}
+                            {optId.toUpperCase()}
+                          </span>
                           <span>{option.text}</span>
                         </button>
                       );
@@ -1020,50 +922,118 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                   {!isAnswerSubmitted ? (
                     <Button
                       variant="primary"
-                      disabled={!selectedOptionId}
-                      onClick={handleSubmitCampaignAnswer}
+                      disabled={!selectedOptionId || submittingAnswer}
+                      onClick={handleSubmitDeckAnswer}
                     >
-                      Submit Evaluation <CheckCircle2 size={16} />
+                      {submittingAnswer ? 'Evaluating...' : 'Submit Forensic Analysis'} <CheckCircle2 size={16} />
                     </Button>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div
-                        className={`cyber-feedback-box ${
-                          selectedOptionId === currentQuestion.correctOptionId
-                            ? 'correct'
-                            : 'incorrect'
-                        }`}
-                      >
-                        <div className="cyber-feedback-title">
-                          {selectedOptionId === currentQuestion.correctOptionId ? (
-                            <>
-                              <CheckCircle2 size={18} /> Good observation! (+10 Points)
-                            </>
-                          ) : (
-                            <>
-                              <HelpCircle size={18} /> Good try! Here's what to look for: (0 Points)
-                            </>
-                          )}
-                        </div>
-                        <p className="cyber-feedback-text">{currentQuestion.explanation}</p>
-                      </div>
+                      {currentEvalResult?.isCorrect ? (
+                        <div
+                          className="cyber-feedback-box correct"
+                          style={{
+                            border: '2px solid #10b981',
+                            background: '#f0fdf4',
+                            padding: '20px',
+                            borderRadius: '14px',
+                            animation: 'fadeIn 0.3s ease',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <CheckCircle2 size={26} color="#059669" />
+                              <div>
+                                <h4 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: '#059669' }}>
+                                  ✓ CORRECT FORENSIC FINDING!
+                                </h4>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#065f46' }}>
+                                  Well done! Option {currentEvalResult.correctOptionId?.toUpperCase()} is the correct answer.
+                                </span>
+                              </div>
+                            </div>
+                            <span
+                              style={{
+                                background: '#15803d',
+                                color: '#ffffff',
+                                padding: '6px 14px',
+                                borderRadius: '20px',
+                                fontSize: '13px',
+                                fontWeight: 800,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <Sparkles size={14} /> +{currentEvalResult.xpAwarded || 10} Global EXP
+                            </span>
+                          </div>
 
-                      <Button variant="primary" onClick={handleNextCampaignQuestion}>
-                        {currentQuestionIndex === 2 ? (
+                          <div style={{ padding: '14px 16px', background: '#ffffff', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                            <strong style={{ display: 'block', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#059669', marginBottom: '6px' }}>
+                              Forensic Clue & Educational Explanation:
+                            </strong>
+                            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#1e293b' }}>
+                              {currentEvalResult.explanation || activeQuestion.explanation}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className="cyber-feedback-box incorrect"
+                          style={{
+                            border: '2px solid #ef4444',
+                            background: '#fef2f2',
+                            padding: '20px',
+                            borderRadius: '14px',
+                            animation: 'fadeIn 0.3s ease',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <XCircle size={26} color="#dc2626" />
+                              <div>
+                                <h4 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: '#dc2626' }}>
+                                  ✗ INCORRECT ANALYSIS
+                                </h4>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b' }}>
+                                  Your Answer (Option {selectedOptionId?.toUpperCase()}) is wrong. The correct answer is Option {currentEvalResult?.correctOptionId?.toUpperCase()}.
+                                </span>
+                              </div>
+                            </div>
+                            <span
+                              style={{
+                                background: '#f1f5f9',
+                                color: '#64748b',
+                                padding: '6px 14px',
+                                borderRadius: '20px',
+                                fontSize: '13px',
+                                fontWeight: 800,
+                              }}
+                            >
+                              +0 EXP
+                            </span>
+                          </div>
+
+                          <div style={{ padding: '14px 16px', background: '#ffffff', borderRadius: '10px', border: '1px solid #fecaca' }}>
+                            <strong style={{ display: 'block', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#dc2626', marginBottom: '6px' }}>
+                              Answer is wrong because:
+                            </strong>
+                            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#1e293b' }}>
+                              {currentEvalResult?.explanation || activeQuestion.explanation}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <Button variant="primary" onClick={handleNextDeckQuestion}>
+                        {currentQuestionIndex + 1 < selectedDeck.questions.length ? (
                           <>
-                            Complete Round 1 & View Assessment <ArrowRight size={16} />
-                          </>
-                        ) : currentQuestionIndex === 5 ? (
-                          <>
-                            Complete Round 2 & View Assessment <ArrowRight size={16} />
-                          </>
-                        ) : currentQuestionIndex + 1 < (activeAttempt?.questions?.length || 9) ? (
-                          <>
-                            Next Question <ArrowRight size={16} />
+                            Next Forensic Question <ArrowRight size={16} />
                           </>
                         ) : (
                           <>
-                            Finish Investigation & View Final Report <Trophy size={16} />
+                            Complete Deck & View Results <Trophy size={16} />
                           </>
                         )}
                       </Button>
@@ -1074,81 +1044,13 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
             </div>
           )}
 
-          {/* VIEW: ROUND SUMMARY INTERSTITIAL (Layer 3 Progression) */}
-          {viewState === 'round_summary' && roundSummaryData && (
-            <div className="cyber-round-summary-container">
-              <div className="cyber-round-summary-icon">
-                <CheckCircle2 size={36} />
-              </div>
-              <h2 className="cyber-round-summary-title">
-                Round {roundSummaryData.roundNumber}: {roundSummaryData.roundTitle} Complete!
-              </h2>
-              <p className="cyber-round-summary-desc">{roundSummaryData.nextRoundOverview}</p>
-
-              <div className="cyber-round-stat-row">
-                <div className="cyber-round-stat-box">
-                  <span>Round Accuracy</span>
-                  <strong style={{ color: 'var(--cyan)' }}>
-                    {roundSummaryData.accuracy !== null ? `${roundSummaryData.accuracy}%` : '—'}
-                  </strong>
-                </div>
-                <div className="cyber-round-stat-box">
-                  <span>Round Score</span>
-                  <strong style={{ color: 'var(--purple)' }}>
-                    {roundSummaryData.score} / {roundSummaryData.maxScore}
-                  </strong>
-                </div>
-                <div className="cyber-round-stat-box">
-                  <span>Correct Clues</span>
-                  <strong>
-                    {roundSummaryData.correctCount} / {roundSummaryData.evaluatedCount}
-                  </strong>
-                </div>
-              </div>
-
-              {roundSummaryData.newlyUnlockedBadges &&
-                roundSummaryData.newlyUnlockedBadges.length > 0 && (
-                  <div
-                    style={{
-                      padding: '14px 18px',
-                      borderRadius: '12px',
-                      background: 'rgba(124, 58, 237, 0.08)',
-                      border: '1px solid rgba(124, 58, 237, 0.25)',
-                      marginBottom: '20px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Medal size={22} color="var(--purple)" />
-                    <div>
-                      <strong style={{ fontSize: '13px', color: 'var(--purple)' }}>
-                        New Badges Unlocked!
-                      </strong>
-                      <div style={{ fontSize: '13px', color: 'var(--text)' }}>
-                        {roundSummaryData.newlyUnlockedBadges.map((b) => b.name).join(', ')}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-              <Button
-                variant="primary"
-                onClick={handleContinueFromRoundSummary}
-                style={{ width: '100%', padding: '14px' }}
-              >
-                Continue to Round {roundSummaryData.nextRoundNumber}:{' '}
-                {roundSummaryData.nextRoundTitle} <ArrowRight size={18} />
-              </Button>
-            </div>
-          )}
-
-          {/* VIEW: FINAL CAMPAIGN RESULTS SCREEN */}
-          {viewState === 'campaign_results' && lastCampaignSummary && (
+          {/* =========================================================================
+              VIEW: DECK RESULTS SCREEN
+              ========================================================================= */}
+          {viewState === 'deck_results' && deckSummaryData && (
             <div className="cyber-results-container">
               {(() => {
-                const tierInfo = getPerformanceTier(lastCampaignSummary.accuracy);
+                const tierInfo = getPerformanceTier(deckSummaryData.accuracy);
                 return (
                   <div>
                     <div className="cyber-results-header">
@@ -1158,7 +1060,10 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                       <span className={`cyber-results-tier-badge ${tierInfo.color}`}>
                         <Award size={16} /> {tierInfo.tier}
                       </span>
-                      <h2>Investigation Final Report</h2>
+                      <h2>Investigation Deck Resolved!</h2>
+                      <h3 style={{ margin: '4px 0 0', fontSize: '18px', color: '#0f172a', fontWeight: 800 }}>
+                        {deckSummaryData.deck?.roundTitle}
+                      </h3>
                       <p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: '14px' }}>
                         {tierInfo.message}
                       </p>
@@ -1168,34 +1073,31 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                       <div className="cyber-result-stat-card">
                         <span>Accuracy Rate</span>
                         <strong style={{ color: 'var(--cyan)' }}>
-                          {lastCampaignSummary.accuracy !== null
-                            ? `${lastCampaignSummary.accuracy}%`
-                            : '—'}
+                          {deckSummaryData.accuracy}%
                         </strong>
                       </div>
                       <div className="cyber-result-stat-card">
-                        <span>Campaign Score</span>
+                        <span>Deck Score</span>
                         <strong style={{ color: 'var(--purple)' }}>
-                          {lastCampaignSummary.questionScore} / 90
+                          {deckSummaryData.score} / {deckSummaryData.maxScore}
                         </strong>
                       </div>
                       <div className="cyber-result-stat-card">
-                        <span>Questions Evaluated</span>
+                        <span>Correct Findings</span>
                         <strong>
-                          {lastCampaignSummary.correctCount} /{' '}
-                          {lastCampaignSummary.evaluatedCount} Correct
+                          {deckSummaryData.correctCount} / {deckSummaryData.totalQuestions}
                         </strong>
                       </div>
                     </div>
 
-                    {/* Shared Global Profile Reward Banner (Layer 1) */}
+                    {/* EXP Reward Banner */}
                     <div
                       style={{
                         padding: '16px 20px',
                         borderRadius: '14px',
                         background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(2, 132, 199, 0.1) 100%)',
                         border: '1px solid rgba(124, 58, 237, 0.3)',
-                        marginBottom: '20px',
+                        marginBottom: '24px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -1207,11 +1109,10 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                         <Sparkles size={22} color="var(--purple)" />
                         <div>
                           <strong style={{ fontSize: '14px', color: 'var(--text)' }}>
-                            Shared Global Profile Updated!
+                            EXP Credited to Global Profile!
                           </strong>
                           <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>
-                            Awarded +{lastCampaignSummary.questionScore} EXP directly to your DeepTrust
-                            Academy Global Profile (Current Balance: {globalTotalXP} Global EXP).
+                            Awarded +{deckSummaryData.score} EXP to your shared DeepTrust Academy account.
                           </p>
                         </div>
                       </div>
@@ -1220,22 +1121,53 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                       </span>
                     </div>
 
+                    {/* Question by Question Review */}
+                    <div style={{ textAlign: 'left', marginBottom: '28px' }}>
+                      <h4 style={{ margin: '0 0 14px', fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                        Case Findings & Evidence Review
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {deckSummaryData.answers.map((ans, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '16px',
+                              borderRadius: '12px',
+                              background: ans.isCorrect ? '#f0fdf4' : '#fef2f2',
+                              border: ans.isCorrect ? '1px solid #86efac' : '1px solid #fca5a5',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                              {ans.isCorrect ? (
+                                <CheckCircle2 size={16} color="#059669" />
+                              ) : (
+                                <XCircle size={16} color="#dc2626" />
+                              )}
+                              <strong style={{ fontSize: '13px', color: ans.isCorrect ? '#065f46' : '#991b1b' }}>
+                                Challenge #{idx + 1}: {ans.isCorrect ? 'Correct Finding (+10 EXP)' : 'Incorrect Analysis (+0 EXP)'}
+                              </strong>
+                            </div>
+                            <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
+                              {ans.questionText}
+                            </p>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
+                              Your Answer: <strong style={{ textTransform: 'uppercase' }}>Option {ans.selectedOptionId}</strong> • Correct Answer: <strong style={{ textTransform: 'uppercase' }}>Option {ans.correctOptionId}</strong>
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#334155', fontStyle: 'italic', background: 'rgba(255, 255, 255, 0.7)', padding: '8px 12px', borderRadius: '8px' }}>
+                              <strong style={{ color: ans.isCorrect ? '#065f46' : '#991b1b', fontStyle: 'normal', display: 'block', marginBottom: '4px' }}>
+                                {ans.isCorrect ? 'Forensic Clue & Explanation:' : 'Answer is wrong because:'}
+                              </strong>
+                              {ans.explanation}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Actions */}
                     <div className="cyber-results-actions">
-                      <Button variant="primary" onClick={handleStartNewCampaign}>
-                        <RotateCcw size={16} /> Play Again (New Scenarios)
-                      </Button>
-                      <Button variant="secondary" onClick={() => go('profile')}>
-                        <BarChart3 size={16} /> View Profile Analytics & Badges
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setActiveTab('missions');
-                          setViewState('hub');
-                        }}
-                      >
-                        <Calendar size={16} /> Explore Daily Missions
+                      <Button variant="primary" onClick={() => setViewState('hub')}>
+                        <Layers size={16} /> Continue to Case Hub
                       </Button>
                       <Button variant="secondary" onClick={() => go('games')}>
                         <Gamepad2 size={16} /> Back to Game Center
@@ -1247,7 +1179,9 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
             </div>
           )}
 
-          {/* VIEW: DAILY MISSION PLAY / REVIEW */}
+          {/* =========================================================================
+              VIEW: DAILY MISSION PLAY / REVIEW
+              ========================================================================= */}
           {viewState === 'mission_play' && selectedMission && (
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
               <div className="cyber-question-card">
@@ -1265,7 +1199,7 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                   {selectedMission.description}
                 </p>
 
-                {/* Complete Scenario & Forensic Evidence Box (FIXED) */}
+                {/* Scenario & Evidence Box */}
                 <div
                   style={{
                     padding: '18px 20px',
@@ -1278,88 +1212,64 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                     gap: '10px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
                     <strong
                       style={{
+                        display: 'block',
                         fontSize: '11px',
                         textTransform: 'uppercase',
-                        color: 'var(--cyan, #0284c7)',
                         letterSpacing: '0.5px',
-                        fontWeight: 800,
+                        color: 'var(--cyan, #0284c7)',
+                        marginBottom: '4px',
                       }}
                     >
-                      Case Scenario & Incident Evidence:
+                      Scenario Dossier:
                     </strong>
-                    {selectedMission.taskScenario?.sender && (
-                      <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600 }}>
-                        Source: {selectedMission.taskScenario.sender}
-                      </span>
-                    )}
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6' }}>
+                      {selectedMission.scenario}
+                    </p>
                   </div>
 
-                  {selectedMission.taskScenario?.headline && (
-                    <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text)' }}>
-                      {selectedMission.taskScenario.headline}
-                    </div>
-                  )}
-
-                  <div style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
-                    {selectedMission.taskScenario?.body || selectedMission.scenario || selectedMission.description}
-                  </div>
-
-                  {selectedMission.taskScenario?.link && (
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        background: 'rgba(239, 68, 68, 0.08)',
-                        border: '1px solid rgba(239, 68, 68, 0.25)',
-                        color: 'var(--danger, #ef4444)',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <AlertTriangle size={14} /> Forensic Flag: {selectedMission.taskScenario.link}
+                  {selectedMission.evidenceText && (
+                    <div style={{ marginTop: '8px' }}>
+                      <strong
+                        style={{
+                          display: 'block',
+                          fontSize: '11px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          color: 'var(--purple, #7c3aed)',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Intercepted Communication:
+                      </strong>
+                      <pre
+                        style={{
+                          margin: 0,
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          background: 'var(--surface, #ffffff)',
+                          border: '1px solid var(--line, #e2e8f0)',
+                          fontSize: '13px',
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          color: 'var(--text, #0f172a)',
+                        }}
+                      >
+                        {selectedMission.evidenceText}
+                      </pre>
                     </div>
                   )}
                 </div>
 
-                {/* Mission Objectives */}
-                {selectedMission.objectives && selectedMission.objectives.length > 0 && (
-                  <div style={{ marginBottom: '18px' }}>
-                    <strong
-                      style={{
-                        fontSize: '11px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        color: 'var(--muted)',
-                        display: 'block',
-                        marginBottom: '6px',
-                      }}
-                    >
-                      Mission Objectives:
-                    </strong>
-                    <ul className="cyber-mission-objectives">
-                      {selectedMission.objectives.map((obj, i) => (
-                        <li key={i}>
-                          <CheckCircle2 size={13} /> {obj}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Question Prompt */}
-                <h3 className="cyber-question-prompt" style={{ fontSize: '16px', margin: '14px 0 12px' }}>
-                  {selectedMission.question?.prompt || selectedMission.question?.question}
+                {/* Question */}
+                <h3 className="cyber-question-prompt">
+                  {selectedMission.question.question}
                 </h3>
 
-                {/* Answer Options */}
                 <div className="cyber-options-list">
-                  {(selectedMission.question?.options || []).map((opt) => {
+                  {selectedMission.question.options.map((opt) => {
                     const isSelected = missionSelectedOption === opt.id;
                     const isCorrect =
                       isMissionSubmitted && opt.id === selectedMission.question.correctOptionId;
@@ -1384,14 +1294,13 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                   })}
                 </div>
 
-                {/* Evaluation Action / Immediate Result Feedback */}
                 {!isMissionSubmitted ? (
                   <Button
                     variant="primary"
                     disabled={!missionSelectedOption}
                     onClick={handleSubmitMissionAnswer}
                   >
-                    Submit Mission Evaluation <CheckCircle2 size={16} />
+                    Submit Mission Analysis <CheckCircle2 size={16} />
                   </Button>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1403,46 +1312,29 @@ export function CyberCrimeInvestigationGame({ go, back, notify }) {
                       <div className="cyber-feedback-title">
                         {missionResultData?.isCorrect ? (
                           <>
-                            <CheckCircle2 size={20} /> Mission Successful!{' '}
-                            {missionResultData.alreadyCompleted
-                              ? '(Previously Claimed Today)'
-                              : `(+${missionResultData.rewardAwarded} Global EXP Credited to Profile!)`}
+                            <CheckCircle2 size={18} /> Mission Succeeded! (+
+                            {selectedMission.rewardXP} Global EXP Credited)
                           </>
                         ) : (
                           <>
-                            <XCircle size={20} /> Mission Unsuccessful! No EXP awarded.
+                            <XCircle size={18} /> Mission Unsuccessful (0 Global EXP)
                           </>
                         )}
                       </div>
                       <p className="cyber-feedback-text">
-                        {missionResultData?.explanation ||
-                          'Incorrect observation. Review the scenario clues and try again.'}
+                        {selectedMission.question.explanation}
                       </p>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                      {!missionResultData?.isCorrect && (
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setIsMissionSubmitted(false);
-                            setMissionSelectedOption(null);
-                            setMissionResultData(null);
-                          }}
-                        >
-                          <RotateCcw size={16} /> Try Again
-                        </Button>
-                      )}
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          setActiveTab('missions');
-                          setViewState('hub');
-                        }}
-                      >
-                        Return to Daily Missions <Calendar size={16} />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setViewState('hub');
+                        setActiveTab('missions');
+                      }}
+                    >
+                      Back to Daily Missions <ArrowRight size={16} />
+                    </Button>
                   </div>
                 )}
               </div>

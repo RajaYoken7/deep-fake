@@ -3,6 +3,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createDetectionRouter } from './routes/detectionRoutes.js';
 import identityGuardianRoutes from './routes/identityGuardianRoutes.js';
 import authRoutes from './routes/authRoutes.js';
@@ -106,6 +108,10 @@ export function createApp(options = {}) {
 
   // Sanitize all incoming requests against NoSQL injection
   app.use(noSqlSanitizer);
+
+  // Static uploads directory serving for photograph assets and preview
+  const uploadsDirectory = path.resolve(fileURLToPath(new URL('./uploads', import.meta.url)));
+  app.use('/uploads', express.static(uploadsDirectory));
 
   // Apply general rate limiter to API endpoints
   app.use('/api', rateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 200 }));

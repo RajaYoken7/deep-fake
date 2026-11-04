@@ -86,6 +86,66 @@ export function AuthProvider({ children, onSessionExpired }) {
   }, []);
 
   /**
+   * Log in administrator specifically with /api/admin/auth/login (with fallback to /api/admin/login and /api/auth/login)
+   */
+  const adminLogin = useCallback(async (email, password) => {
+    try {
+      const response = await apiRequest('/api/admin/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response?.data) {
+        setUser(response.data.user);
+        setAccessToken(response.data.accessToken);
+        tokenRef.current = response.data.accessToken;
+        return response.data;
+      }
+    } catch (adminErr) {
+      // If endpoint not found (404) or requires access token (older backend route), fallback
+      const shouldFallback =
+        adminErr.status === 404 ||
+        (adminErr.message && (
+          adminErr.message.includes('Access token is required') ||
+          adminErr.message.includes('Cannot POST /api/admin/auth/login') ||
+          adminErr.message.includes('404')
+        ));
+
+      if (shouldFallback) {
+        try {
+          const altRes = await apiRequest('/api/admin/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+          });
+          if (altRes?.data) {
+            setUser(altRes.data.user);
+            setAccessToken(altRes.data.accessToken);
+            tokenRef.current = altRes.data.accessToken;
+            return altRes.data;
+          }
+        } catch {
+          // Fall through to /api/auth/login
+        }
+
+        const fallbackRes = await apiRequest('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        });
+        if (fallbackRes?.data) {
+          if (fallbackRes.data.user.role !== 'ADMIN') {
+            throw new Error('Access denied: Administrator privileges required.');
+          }
+          setUser(fallbackRes.data.user);
+          setAccessToken(fallbackRes.data.accessToken);
+          tokenRef.current = fallbackRes.data.accessToken;
+          return fallbackRes.data;
+        }
+      }
+      throw adminErr;
+    }
+  }, []);
+
+  /**
    * Register new user account
    */
   const register = useCallback(async (name, email, password) => {
@@ -172,6 +232,7 @@ export function AuthProvider({ children, onSessionExpired }) {
     isAuthenticated: Boolean(user && accessToken),
     isLoading,
     login,
+    adminLogin,
     register,
     logout,
     logoutAll,

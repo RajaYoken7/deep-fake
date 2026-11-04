@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import {
   GAME_LEVELS,
   GAME_RANKS,
@@ -9,6 +10,8 @@ import {
 import { User } from '../models/User.js';
 import { GameSession } from '../models/GameSession.js';
 import { GameAttempt } from '../models/GameAttempt.js';
+import { GameQuestion } from '../models/GameQuestion.js';
+import { GameImage } from '../models/GameImage.js';
 import { analyzeWithSightengine } from './sightengineService.js';
 import { buildDetectionResult } from './detectionService.js';
 import { cleanupFiles } from '../middleware/uploadMiddleware.js';
@@ -100,29 +103,119 @@ export function checkAndAwardAchievements(user) {
 }
 
 /**
- * Returns list of curated challenges without revealing ground truth answers.
+ * Returns list of curated challenges from published, active database images
+ * without revealing ground truth answers to the client.
+ * If userId is provided, filters out images the user has already analyzed/detected.
  */
-export function getCuratedChallenges() {
-  return CURATED_CHALLENGES.map((challenge, index) => ({
-    id: challenge.id,
+export async function getCuratedChallenges(userId = null) {
+  // Query administrator-created, published, active images from GameImage
+  let publishedImages = await GameImage.find({
+    $or: [{ publicationStatus: 'PUBLISHED' }, { status: 'PUBLISHED' }],
+    isActive: true,
+  }).lean();
+
+  // Fallback to GameQuestion if GameImage collection is empty
+  if (!publishedImages || publishedImages.length === 0) {
+    const publishedQuestions = await GameQuestion.find({
+      $or: [{ publicationStatus: 'PUBLISHED' }, { status: 'PUBLISHED' }],
+      isActive: true,
+    }).lean();
+
+    if (!publishedQuestions || publishedQuestions.length === 0) {
+      const emptyArr = [];
+      emptyArr.allCompleted = false;
+      emptyArr.totalPublished = 0;
+      return emptyArr;
+    }
+
+    publishedImages = publishedQuestions.map((q) => ({
+      _id: q._id,
+      imageId: q.questionId || q.imageId || `IMG-${q._id}`,
+      imageUrl: q.imageUrl,
+      imageCategory: q.category || 'Facial Synthesis',
+      difficulty: q.difficulty || 'Medium',
+      correctAnswer: q.correctAnswer || (q.label === 'REAL' ? 'REAL' : 'AI_GENERATED'),
+      imageType: q.correctAnswer || (q.label === 'REAL' ? 'REAL' : 'AI_GENERATED'),
+      explanation: q.explanation || q.clues || '',
+    }));
+  }
+
+  const totalPublished = publishedImages.length;
+  let availableImages = [...publishedImages];
+  let allCompleted = false;
+
+  // Filter out images already attempted by this user
+  if (userId) {
+    const userAttempts = await GameAttempt.find({ userId }).select('imageReference').lean();
+    const attemptedIds = new Set(userAttempts.map((a) => String(a.imageReference)));
+
+    const unattempted = publishedImages.filter(
+      (img) => !attemptedIds.has(String(img.imageId)) && !attemptedIds.has(String(img._id))
+    );
+
+    if (unattempted.length > 0) {
+      availableImages = unattempted;
+    } else {
+      allCompleted = true;
+      availableImages = [];
+    }
+  }
+
+  if (allCompleted) {
+    const emptyArr = [];
+    emptyArr.allCompleted = true;
+    emptyArr.totalPublished = totalPublished;
+    return emptyArr;
+  }
+
+  // Separate real and AI images to provide a balanced mixture if sufficient images exist
+  const realImages = availableImages.filter(
+    (img) => (img.correctAnswer || img.imageType) === 'REAL'
+  );
+  const aiImages = availableImages.filter(
+    (img) => (img.correctAnswer || img.imageType) === 'AI_GENERATED'
+  );
+
+  let selected = [];
+  if (realImages.length > 0 && aiImages.length > 0) {
+    // Shuffle both pools
+    const shuffledReal = [...realImages].sort(() => 0.5 - Math.random());
+    const shuffledAi = [...aiImages].sort(() => 0.5 - Math.random());
+    const half = Math.min(5, Math.max(shuffledReal.length, shuffledAi.length));
+    const pickedReal = shuffledReal.slice(0, half);
+    const pickedAi = shuffledAi.slice(0, half);
+    selected = [...pickedReal, ...pickedAi].sort(() => 0.5 - Math.random());
+  } else {
+    selected = [...availableImages].sort(() => 0.5 - Math.random()).slice(0, 10);
+  }
+
+  // Map to challenge format without revealing ground truth answers
+  const result = selected.map((img, index) => ({
+    id: img._id.toString(),
+    challengeId: img._id.toString(),
+    imageId: img.imageId || `IMG-${String(index + 1).padStart(3, '0')}`,
     questionNumber: index + 1,
-    title: challenge.title,
-    category: challenge.category,
-    difficulty: challenge.difficulty,
-    imageUrl: challenge.imageUrl,
-    clues: challenge.clues,
+    title: `${img.imageCategory || 'Photograph'} #${index + 1}`,
+    category: img.imageCategory || 'Facial Synthesis',
+    difficulty: img.difficulty || 'Medium',
+    imageUrl: img.imageUrl,
   }));
+
+  result.allCompleted = false;
+  result.totalPublished = totalPublished;
+  return result;
 }
 
 /**
- * Submits an answer (either for a curated challenge or an uploaded image).
+ * Submits an answer evaluated purely against administrator-defined ground truth in MongoDB.
+ * Zero external AI / Sightengine calls during gameplay.
  */
 export async function processGameSubmission({
   userId,
   sessionId,
-  userPrediction, // 'REAL' or 'FAKE'
-  challengeId,    // optional if using curated challenge
-  uploadedFile,   // optional if uploading custom image
+  userPrediction, // 'REAL' or 'AI_GENERATED' (or 'FAKE')
+  challengeId,
+  uploadedFile,
 }) {
   const user = await User.findById(userId);
   if (!user) {
@@ -143,60 +236,79 @@ export async function processGameSubmission({
     throw new Error('This game session has already been completed. Please start a new session.');
   }
 
-  let aiScore = null;
-  let aiClassification = 'INCONCLUSIVE';
-  let imageReference = challengeId || uploadedFile?.originalname || 'custom_upload';
-  let imageUrl = null;
+  // Normalize user prediction
+  const normUserPrediction =
+    userPrediction === 'FAKE' || userPrediction === 'AI_GENERATED'
+      ? 'AI_GENERATED'
+      : 'REAL';
+
+  let normCorrectAnswer = 'REAL';
   let educationalExplanation = '';
+  let imageReference = challengeId || 'game_image';
+  let imageUrl = null;
 
   try {
-    if (uploadedFile) {
-      // Analyze uploaded image using Sightengine GenAI
-      const rawResult = await analyzeWithSightengine(uploadedFile);
-      const detectionResult = buildDetectionResult(rawResult);
-      aiScore = detectionResult.score;
-      aiClassification = detectionResult.classification;
-      educationalExplanation =
-        aiClassification === 'AI_GENERATED'
-          ? 'Sightengine detected strong synthetic diffusion patterns and latent generative frequency signatures in this upload.'
-          : aiClassification === 'NOT_AI_GENERATED'
-          ? 'Sightengine detected natural photographic grain and authentic sensor noise characteristic of non-AI photography.'
-          : 'Sightengine could not make a confident classification due to ambiguous image characteristics or heavy compression.';
-    } else if (challengeId) {
-      const challenge = CURATED_CHALLENGES.find((c) => c.id === challengeId);
-      if (!challenge) {
-        throw new Error(`Curated challenge '${challengeId}' was not found.`);
+    let imageDoc = null;
+
+    if (challengeId) {
+      if (mongoose.Types.ObjectId.isValid(challengeId)) {
+        imageDoc = await GameImage.findById(challengeId);
       }
-      aiScore = challenge.groundTruthScore;
-      aiClassification = challenge.groundTruthClassification;
-      imageUrl = challenge.imageUrl;
-      imageReference = challenge.id;
-      educationalExplanation = challenge.explanation;
+      if (!imageDoc) {
+        imageDoc = await GameImage.findOne({ imageId: challengeId });
+      }
+
+      // Fallback check in GameQuestion
+      if (!imageDoc) {
+        if (mongoose.Types.ObjectId.isValid(challengeId)) {
+          imageDoc = await GameQuestion.findById(challengeId);
+        }
+        if (!imageDoc) {
+          imageDoc = await GameQuestion.findOne({
+            $or: [{ questionId: challengeId }, { imageId: challengeId }],
+          });
+        }
+      }
+
+      // Fallback check in CURATED_CHALLENGES
+      if (!imageDoc) {
+        const curated = CURATED_CHALLENGES.find((c) => c.id === challengeId);
+        if (curated) {
+          const isReal = curated.groundTruthClassification === 'NOT_AI_GENERATED';
+          normCorrectAnswer = isReal ? 'REAL' : 'AI_GENERATED';
+          educationalExplanation = curated.explanation || '';
+          imageUrl = curated.imageUrl;
+          imageReference = curated.id;
+        } else {
+          throw new Error(`Challenge image '${challengeId}' was not found in database.`);
+        }
+      } else {
+        const rawAnswer = (imageDoc.correctAnswer || imageDoc.imageType || imageDoc.label || 'REAL').toUpperCase();
+        normCorrectAnswer =
+          rawAnswer === 'AI_GENERATED' || rawAnswer === 'FAKE'
+            ? 'AI_GENERATED'
+            : 'REAL';
+        educationalExplanation =
+          imageDoc.explanation ||
+          imageDoc.notes ||
+          (normCorrectAnswer === 'AI_GENERATED'
+            ? 'Synthetic AI artifacts and generative features detected in facial geometry and background frequency signatures.'
+            : 'Authentic photographic grain and natural sensor noise verified.');
+        imageUrl = imageDoc.imageUrl;
+        imageReference = imageDoc.imageId || imageDoc.questionId || imageDoc._id.toString();
+      }
     } else {
-      throw new Error('Either a challengeId or an image file is required for submission.');
+      throw new Error('A valid challenge image ID is required for answer submission.');
     }
   } finally {
-    // Crucial: Clean up uploaded file immediately after processing
     if (uploadedFile) {
       await cleanupFiles([uploadedFile]);
     }
   }
 
-  // Determine correctness
-  let isCorrect = null;
-  let status = 'success';
-
-  if (aiClassification === 'INCONCLUSIVE') {
-    isCorrect = null;
-    status = 'inconclusive';
-  } else if (
-    (userPrediction === 'REAL' && aiClassification === 'NOT_AI_GENERATED') ||
-    (userPrediction === 'FAKE' && aiClassification === 'AI_GENERATED')
-  ) {
-    isCorrect = true;
-  } else {
-    isCorrect = false;
-  }
+  // Pure database verification
+  const isCorrect = normUserPrediction === normCorrectAnswer;
+  const status = 'success';
 
   // Calculate XP rewards and streak bonuses
   let earnedXP = 0;
@@ -266,9 +378,9 @@ export async function processGameSubmission({
     userId: user._id,
     sessionId: session.sessionId,
     imageReference,
-    userPrediction,
-    aiClassification,
-    aiScore,
+    userPrediction: normUserPrediction,
+    aiClassification: normCorrectAnswer === 'AI_GENERATED' ? 'AI_GENERATED' : 'NOT_AI_GENERATED',
+    aiScore: normCorrectAnswer === 'AI_GENERATED' ? 1.0 : 0.0,
     isCorrect,
     xpAwarded: earnedXP,
     streakAtAttempt: user.currentStreak,
@@ -289,9 +401,10 @@ export async function processGameSubmission({
     sessionId: session.sessionId,
     imageReference,
     imageUrl,
-    userPrediction,
-    aiClassification,
-    aiScore,
+    userPrediction: normUserPrediction,
+    correctAnswer: normCorrectAnswer,
+    aiClassification: normCorrectAnswer === 'AI_GENERATED' ? 'AI_GENERATED' : 'NOT_AI_GENERATED',
+    aiScore: normCorrectAnswer === 'AI_GENERATED' ? 1.0 : 0.0,
     isCorrect,
     status,
     xpEarned: earnedXP,
@@ -316,10 +429,11 @@ export async function processGameSubmission({
       incorrectAnswers: user.incorrectAnswers,
       inconclusiveAnswers: user.inconclusiveAnswers,
     },
+    explanation: educationalExplanation,
     educationalExplanation,
     newlyUnlockedAchievements,
     disclaimer:
-      'Sightengine GenAI results are automated mathematical estimates based on generative model artifacts, not absolute proof of authenticity.',
+      'Answer verified against administrator-confirmed forensic database record.',
   };
 }
 

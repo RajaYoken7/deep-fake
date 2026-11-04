@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { AdminDashboard } from '../features/admin/AdminDashboard';
 import {
   Camera,
   FileClock,
@@ -43,11 +44,13 @@ import {
   TrendingUp,
   Layers,
   Play,
+  FileDown,
 } from 'lucide-react';
 import { Button, GlassCard, SectionHead } from '../components/UI';
 import { BackButton, PublicNav } from './Modules';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserGameStats } from '../features/game/services/gameApi';
+import { downloadDetectionReportPDF, downloadIdentityReportPDF } from '../utils/pdfReportGenerator';
 import '../features/game/cyberCrime/cyberCrime.css';
 import { loadUserProgress, calculateGameAnalytics } from '../features/game/cyberCrime/cyberCrimeStorage';
 import { CYBER_CRIME_BADGES_CATALOG } from '../features/game/cyberCrime/cyberCrimeBadges';
@@ -78,6 +81,7 @@ export function HistoryPage({ go, back, notify }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClassification, setFilterClassification] = useState('ALL');
   const [inspectModal, setInspectModal] = useState(null);
+  const [inspectIdentityModal, setInspectIdentityModal] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
@@ -404,6 +408,7 @@ export function HistoryPage({ go, back, notify }) {
           {history.identityReports.map((item) => (
             <GlassCard
               key={item.reportId}
+              onClick={() => setInspectIdentityModal(item)}
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -411,6 +416,7 @@ export function HistoryPage({ go, back, notify }) {
                 padding: '16px 20px',
                 flexWrap: 'wrap',
                 gap: '14px',
+                cursor: 'pointer',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -560,15 +566,131 @@ export function HistoryPage({ go, back, notify }) {
               <strong>Threshold Policy:</strong> Scores ≥ 0.80 indicate strong synthetic indicators; scores ≤ 0.20 indicate natural imagery; intermediate scores are inconclusive.
             </div>
 
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+              <Button
+                onClick={() => downloadDetectionReportPDF(inspectModal)}
+                style={{ background: '#0284c7', color: '#ffffff' }}
+              >
+                <FileDown size={16} /> Download Report (PDF)
+              </Button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <Button
+                  variant="secondary"
+                  onClick={(e) => handleDeleteRecord(inspectModal.id, e)}
+                  style={{ color: '#000000', borderColor: '#000000' }}
+                >
+                  <Trash2 size={16} /> Delete
+                </Button>
+                <Button onClick={() => setInspectModal(null)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Identity Report Inspection Modal */}
+      {inspectIdentityModal && (
+        <div className="profile-modal-overlay">
+          <div className="profile-modal" style={{ maxWidth: '560px' }}>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => setInspectIdentityModal(null)}
+            >
+              <X />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: '#000000',
+                  color: '#ffffff',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text)' }}>
+                  Identity Verification Report
+                </h3>
+                <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                  Report ID: {inspectIdentityModal.reportId}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '12px', margin: '20px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Verification Type</span>
+                <strong style={{ color: 'var(--text)', fontSize: '13px' }}>
+                  {inspectIdentityModal.verificationType === 'id_photo_verification'
+                    ? 'ID Document & Portrait Photo'
+                    : 'AI Face Comparison'}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Verified At</span>
+                <strong style={{ color: 'var(--text)', fontSize: '13px' }}>{formatDate(inspectIdentityModal.createdAt)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Similarity Score</span>
+                <strong style={{ color: 'var(--text)', fontSize: '15px' }}>
+                  {inspectIdentityModal.similarityScore !== null ? `${Number(inspectIdentityModal.similarityScore).toFixed(1)}%` : 'N/A'}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Biometric Decision</span>
+                <span
+                  style={{
+                    color:
+                      inspectIdentityModal.decision === 'LIKELY SAME PERSON' || inspectIdentityModal.decision === 'SAME PERSON' ? '#ffffff' : '#000000',
+                    background:
+                      inspectIdentityModal.decision === 'LIKELY SAME PERSON' || inspectIdentityModal.decision === 'SAME PERSON' ? '#000000' : '#ffffff',
+                    border: '1px solid #000000',
+                    padding: '3px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {inspectIdentityModal.decision || inspectIdentityModal.status?.toUpperCase()}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Status</span>
+                <strong style={{ color: '#059669', fontSize: '13px' }}>
+                  {inspectIdentityModal.status?.toUpperCase() || 'COMPLETED'}
+                </strong>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: '#f8fafc',
+                border: '1px solid var(--line)',
+                fontSize: '12px',
+                color: 'var(--muted)',
+                lineHeight: '1.6',
+                marginBottom: '20px',
+              }}
+            >
+              <strong>Privacy Guarantee:</strong> Zero raw biometrics stored. Identity similarity vectors are evaluated in transient memory and destroyed immediately.
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
               <Button
-                variant="secondary"
-                onClick={(e) => handleDeleteRecord(inspectModal.id, e)}
-                style={{ color: '#000000', borderColor: '#000000' }}
+                onClick={() => downloadIdentityReportPDF(inspectIdentityModal)}
+                style={{ background: '#0284c7', color: '#ffffff' }}
               >
-                <Trash2 size={16} /> Delete Report
+                <FileDown size={16} /> Download Report (PDF)
               </Button>
-              <Button onClick={() => setInspectModal(null)}>Close</Button>
+              <Button onClick={() => setInspectIdentityModal(null)}>Close</Button>
             </div>
           </div>
         </div>
@@ -900,13 +1022,6 @@ export function ProfilePage({ go, back, notify }) {
               count={stats.identityChecks}
               note="Identity Verifications"
               color="purple"
-            />
-            <Summary
-              icon={Target}
-              title="Missions"
-              count={stats.missions}
-              note="Missions Completed"
-              color="blue"
             />
             <Summary
               icon={Gamepad2}
@@ -2249,315 +2364,10 @@ export function ProfilePage({ go, back, notify }) {
 
 /**
  * Admin Area Component
- * Live Admin Dashboard, User Management, and Feature E: Admin Activity & Audit Logs
+ * Upgraded DeepTrust Academy Admin Dashboard
  */
 export function AdminArea({ go, back, notify }) {
-  const { user } = useAuth();
-  const [tab, setTab] = useState('overview'); // 'overview' | 'users' | 'audit_logs'
-  const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [statusToggling, setStatusToggling] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    async function loadAdminData() {
-      try {
-        const [overviewData, usersList, logsList] = await Promise.all([
-          getAdminOverview(),
-          getAdminUsers(),
-          getAdminAuditLogs().catch(() => []),
-        ]);
-        if (active) {
-          setOverview(overviewData);
-          setUsers(usersList);
-          setAuditLogs(logsList);
-        }
-      } catch (err) {
-        if (notify) notify('Could not load administrative data.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-    loadAdminData();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const handleToggleStatus = async (targetUser) => {
-    setStatusToggling(targetUser.id);
-    try {
-      const updated = await toggleAdminUserStatus(targetUser.id, !targetUser.isActive);
-      setUsers((prev) =>
-        prev.map((u) => (u.id === targetUser.id ? { ...u, isActive: updated.isActive } : u))
-      );
-      // Reload audit logs to reflect the action
-      getAdminAuditLogs().then((logs) => setAuditLogs(logs)).catch(() => {});
-      if (notify)
-        notify(`User ${updated.name} has been ${updated.isActive ? 'activated' : 'deactivated'}.`);
-    } catch (err) {
-      if (notify) notify(err.message || 'Failed to update user status.');
-    } finally {
-      setStatusToggling(null);
-    }
-  };
-
-  return (
-    <Shell go={go} back={back}>
-      <SectionHead
-        eyebrow="ADMINISTRATION CONSOLE"
-        title="Admin Management Hub"
-        copy="Manage platform users, inspect security audit trails, and monitor platform integrity."
-      />
-
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <Button
-          variant={tab === 'overview' ? 'primary' : 'secondary'}
-          onClick={() => setTab('overview')}
-        >
-          <Users size={16} /> Overview
-        </Button>
-        <Button
-          variant={tab === 'users' ? 'primary' : 'secondary'}
-          onClick={() => setTab('users')}
-        >
-          <UserRound size={16} /> Users ({users.length})
-        </Button>
-        <Button
-          variant={tab === 'audit_logs' ? 'primary' : 'secondary'}
-          onClick={() => setTab('audit_logs')}
-        >
-          <Clock size={16} /> Audit Logs ({auditLogs.length})
-        </Button>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>
-          Loading admin data...
-        </div>
-      ) : tab === 'overview' && overview ? (
-        <div>
-          <div className="profile-summary-grid">
-            <Summary
-              icon={Users}
-              title="Registered Users"
-              count={overview.stats.totalUsers}
-              note="Total Accounts"
-              color="cyan"
-            />
-            <Summary
-              icon={CheckCircle}
-              title="Active Users"
-              count={overview.stats.activeUsers}
-              note="Active Accounts"
-              color="green"
-            />
-            <Summary
-              icon={ScanSearch}
-              title="Total Detections"
-              count={overview.stats.totalDetections}
-              note="Deepfake Checks"
-              color="blue"
-            />
-            <Summary
-              icon={ShieldCheck}
-              title="Identity Checks"
-              count={overview.stats.totalIdentityReports}
-              note="Verifications"
-              color="purple"
-            />
-          </div>
-
-          <GlassCard style={{ marginTop: '24px', padding: '24px' }}>
-            <h3 style={{ fontSize: '18px', marginBottom: '16px', color: 'var(--text)' }}>
-              Recent Registrations
-            </h3>
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {overview.recentUsers?.map((u) => (
-                <div
-                  key={u.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    background: '#ffffff',
-                    border: '1px solid var(--line)',
-                  }}
-                >
-                  <div>
-                    <strong style={{ color: 'var(--text)', display: 'block' }}>{u.name}</strong>
-                    <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{u.email}</span>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      padding: '3px 10px',
-                      borderRadius: '6px',
-                      background:
-                        u.role === 'ADMIN' ? '#000000' : '#ffffff',
-                      color: u.role === 'ADMIN' ? '#ffffff' : '#000000',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {u.role}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-        </div>
-      ) : tab === 'users' ? (
-        <GlassCard style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '18px', marginBottom: '16px', color: 'var(--text)' }}>
-            User Management Directory
-          </h3>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td style={{ fontWeight: 600 }}>{u.name}</td>
-                    <td style={{ color: 'var(--muted)' }}>{u.email}</td>
-                    <td>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background:
-                            u.role === 'ADMIN' ? '#000000' : '#ffffff',
-                          color: u.role === 'ADMIN' ? '#ffffff' : '#000000',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {u.role}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: u.isActive ? '#000000' : '#ffffff',
-                          color: u.isActive ? '#ffffff' : '#000000',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {u.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      {u.id !== user?.id && (
-                        <button
-                          onClick={() => handleToggleStatus(u)}
-                          disabled={statusToggling === u.id}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#000000', textDecoration: 'underline',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {statusToggling === u.id
-                            ? 'Updating...'
-                            : u.isActive
-                            ? 'Deactivate'
-                            : 'Activate'}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </GlassCard>
-      ) : tab === 'audit_logs' ? (
-        /* Feature E: Admin Activity & Audit Logs */
-        <GlassCard style={{ padding: '24px' }}>
-          <div style={{ marginBottom: '18px' }}>
-            <h3 style={{ fontSize: '18px', margin: '0 0 4px', color: 'var(--text)' }}>
-              Administrative Security Audit Trail
-            </h3>
-            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '13px' }}>
-              Immutable record of administrative actions, account suspensions, and session terminations.
-            </p>
-          </div>
-
-          {auditLogs.length > 0 ? (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Action</th>
-                    <th>Target Entity</th>
-                    <th>Admin Name</th>
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogs.map((log) => (
-                    <tr key={log._id || log.id}>
-                      <td style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                        {new Date(log.createdAt).toLocaleString()}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            background:
-                              log.action?.includes('DEACTIVAT') || log.action?.includes('REVOKE') ? '#000000' : '#ffffff',
-                            color:
-                              log.action?.includes('DEACTIVAT') || log.action?.includes('REVOKE') ? '#ffffff' : '#000000',
-                            fontFamily: "'DM Mono', monospace",
-                            fontWeight: 700,
-                          }}
-                        >
-                          {log.action}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{log.targetEntity || log.targetId || '--'}</td>
-                      <td>{log.adminName || 'Admin'}</td>
-                      <td style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                        {log.details ? JSON.stringify(log.details) : 'Administrative operation'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty-grid">
-              <Empty
-                icon={Clock}
-                title="No Audit Logs Recorded"
-                text="Administrative actions such as user activation or role updates will appear here."
-              />
-            </div>
-          )}
-        </GlassCard>
-      ) : null}
-    </Shell>
-  );
+  return <AdminDashboard go={go} back={back} notify={notify} />;
 }
 
 function Empty({ icon: Icon, title, text }) {

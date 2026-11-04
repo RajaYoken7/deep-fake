@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { createApp } from './app.js';
 import { connectDB, sanitizeLog } from './config/db.js';
 import { DEFAULT_AI_GENERATED_THRESHOLD } from './constants/detection.js';
+import { seedAdminUser } from './utils/seedAdmin.js';
 
 const port = Number(process.env.PORT) || 5000;
 
@@ -40,6 +41,7 @@ async function startServer() {
   try {
     // Connect to MongoDB Atlas
     await connectDB();
+    await seedAdminUser().catch((e) => console.warn('[Admin Seed Warning]', e.message));
   } catch (dbError) {
     console.warn(`[Warning] Database connection failed at startup: ${dbError.message}`);
     console.warn('[Warning] Server will continue running; verification reports will execute in fallback mode.');
@@ -52,6 +54,17 @@ async function startServer() {
     console.log(`[Server] Health Endpoint: http://localhost:${port}/health`);
     console.log(`[Server] Allowed Client Origins: ${process.env.FRONTEND_URL || process.env.CLIENT_URL || 'https://deep-fake-cfa8.vercel.app'}`);
     console.log('='.repeat(60));
+  });
+
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`\n[Server Error] Port ${port} is already in use by another process.`);
+      console.error(`[Server Fix] Terminate the process currently running on port ${port} or pass a different port (e.g. PORT=5001).`);
+      process.exit(1);
+    } else {
+      console.error(`[Server Error] ${error.message}`);
+      process.exit(1);
+    }
   });
 
   // Graceful shutdown handling
