@@ -941,8 +941,8 @@ export function ProfilePage({ go, back, notify }) {
           {user?.profilePicture ? (
             <img src={user.profilePicture} alt="Profile" />
           ) : (
-            <span style={{ fontSize: '36px', fontWeight: 700, color: '#fff' }}>
-              {user?.name ? user.name.charAt(0).toUpperCase() : <UserRound />}
+            <span style={{ fontSize: '36px', fontWeight: 800, color: '#fff', textTransform: 'uppercase' }}>
+              {(user?.name?.trim()?.[0] || user?.email?.trim()?.[0] || 'U').toUpperCase()}
             </span>
           )}
         </div>

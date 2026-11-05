@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -7,6 +7,68 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SCRIPT_PATH = path.resolve(__dirname, '../ml_engine/identity_guardian_cv.py');
+
+let cachedPythonExecutable = null;
+
+/**
+ * Resolves a reliable Python executable, avoiding broken WindowsApps stubs on Windows.
+ * @returns {string}
+ */
+export function resolvePythonExecutable() {
+  if (cachedPythonExecutable) {
+    return cachedPythonExecutable;
+  }
+
+  const envPath = process.env.PYTHON_PATH;
+  const isWindows = process.platform === 'win32';
+
+  if (!isWindows) {
+    cachedPythonExecutable = envPath || 'python3';
+    return cachedPythonExecutable;
+  }
+
+  // Windows candidate binaries
+  const candidates = [
+    envPath,
+    'C:\\Python314\\python.exe',
+    'C:\\Python313\\python.exe',
+    'C:\\Python312\\python.exe',
+    'C:\\Python311\\python.exe',
+    'C:\\Python310\\python.exe',
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python314', 'python.exe') : null,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python313', 'python.exe') : null,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python312', 'python.exe') : null,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python311', 'python.exe') : null,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python310', 'python.exe') : null,
+    'py',
+    'python',
+    'python3',
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      if (candidate.toLowerCase().includes('windowsapps')) continue;
+
+      if (fs.existsSync(candidate)) {
+        cachedPythonExecutable = candidate;
+        return candidate;
+      }
+
+      // If it's a command in PATH, verify it's not a WindowsApps redirector stub
+      const checkCmd = `"${candidate}" -c "import sys; print(sys.executable)"`;
+      const out = execSync(checkCmd, { stdio: 'pipe', timeout: 3000 }).toString().trim();
+      if (out && !out.toLowerCase().includes('windowsapps')) {
+        cachedPythonExecutable = candidate;
+        return candidate;
+      }
+    } catch {
+      // Continue searching
+    }
+  }
+
+  cachedPythonExecutable = envPath || 'python';
+  return cachedPythonExecutable;
+}
 
 /**
  * Attempts verification via remote Python FastAPI AI service if configured.
@@ -69,9 +131,8 @@ export async function runPythonCvEngine(mode, image1Path, image2Path, timeoutMs 
 
   // 2. Execute local Computer Vision & Deep Learning engine
   return new Promise((resolve, reject) => {
-    // Choose appropriate python binary (python3 on Linux/Render, python on Windows)
-    const pythonExecutable =
-      process.env.PYTHON_PATH || (process.platform === 'win32' ? 'python' : 'python3');
+    // Choose appropriate python binary (auto-discovering real Python on Windows)
+    const pythonExecutable = resolvePythonExecutable();
     const args = [SCRIPT_PATH, mode, image1Path, image2Path];
 
     const child = spawn(pythonExecutable, args);

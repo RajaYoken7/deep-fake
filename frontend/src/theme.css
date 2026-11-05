@@ -334,7 +334,6 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
-.profile-nav-icon,
 .landing-menu,
 .public-nav-toggle,
 .mobile-menu,
@@ -353,7 +352,6 @@ select:focus-visible {
   transition: all 0.2s ease;
 }
 
-.profile-nav-icon:hover,
 .landing-menu:hover,
 .public-nav-toggle:hover,
 .mobile-menu:hover,

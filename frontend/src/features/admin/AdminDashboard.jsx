@@ -874,11 +874,12 @@ export function AdminDashboard({ go, back, notify }) {
                   color: '#ffffff',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: '12px',
-                  fontWeight: 700,
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
                 }}
               >
-                {user?.name?.[0] || 'A'}
+                {(user?.name?.trim()?.[0] || 'A').toUpperCase()}
               </div>
               <div style={{ lineHeight: 1.2 }}>
                 <strong style={{ fontSize: '13px', display: 'block' }}>{user?.name || 'Administrator'}</strong>
@@ -2608,9 +2609,10 @@ export function AdminDashboard({ go, back, notify }) {
                     placeItems: 'center',
                     fontSize: '20px',
                     fontWeight: 800,
+                    textTransform: 'uppercase',
                   }}
                 >
-                  {inspectUserModal.user.name[0] || 'U'}
+                  {(inspectUserModal.user.name?.trim()?.[0] || 'U').toUpperCase()}
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 800 }}>{inspectUserModal.user.name}</h3>
@@ -3436,12 +3438,13 @@ export function AdminDashboard({ go, back, notify }) {
                   color: '#ffffff',
                   fontSize: '24px',
                   fontWeight: 800,
+                  textTransform: 'uppercase',
                   display: 'grid',
                   placeItems: 'center',
                   margin: '0 auto 12px',
                 }}
               >
-                {user?.name?.[0] || 'A'}
+                {(user?.name?.trim()?.[0] || 'A').toUpperCase()}
               </div>
               <h4 style={{ margin: '0 0 4px', fontSize: '16px' }}>{user?.name}</h4>
               <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{user?.email}</span>

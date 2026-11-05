@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   ArrowRight,
-  CircleUserRound,
   Fingerprint,
   Gamepad2,
   ScanSearch,
@@ -111,22 +110,31 @@ export function PublicNav({ go }) {
             <button
               className="profile-nav-icon"
               onClick={() => navigate('profile')}
-              aria-label="Open profile"
-              title={user?.name || 'Profile'}
+              aria-label={`Open profile for ${user?.name || 'User'}`}
+              title={user?.name ? `${user.name} (Profile)` : 'Profile'}
               style={{
+                width: '36px',
+                height: '36px',
+                minWidth: '36px',
+                minHeight: '36px',
+                borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '6px 12px',
-                borderRadius: '9999px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                color: '#ffffff',
+                border: '1.5px solid rgba(255, 255, 255, 0.3)',
+                fontSize: '15px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(2, 132, 199, 0.35)',
+                padding: 0,
+                lineHeight: 1,
+                flexShrink: 0,
               }}
             >
-              <CircleUserRound size={20} />
-              <span style={{ fontSize: '0.85rem', fontWeight: 500, maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user?.name?.split(' ')[0] || 'Cadet'}
-              </span>
+              {(user?.name?.trim()?.[0] || user?.email?.trim()?.[0] || 'U').toUpperCase()}
             </button>
             <Button variant="ghost" onClick={handleLogout} title="Logout">
               <LogOut size={16} /> Logout
@@ -138,13 +146,6 @@ export function PublicNav({ go }) {
               Login
             </Button>
             <Button onClick={() => navigate('register')}>Get started</Button>
-            <button
-              className="profile-nav-icon"
-              onClick={() => navigate('login')}
-              aria-label="Open login"
-            >
-              <CircleUserRound />
-            </button>
           </>
         )}
       </div>

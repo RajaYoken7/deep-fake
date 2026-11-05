@@ -106,7 +106,7 @@ export function Sidebar({ page, go, admin = false, open, setOpen, notify }) {
                 flexShrink: 0,
               }}
             >
-              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              {(user?.name?.trim()?.[0] || user?.email?.trim()?.[0] || 'U').toUpperCase()}
             </div>
             <div style={{ minWidth: 0, overflow: 'hidden' }}>
               <div
